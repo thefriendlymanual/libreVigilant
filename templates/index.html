@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIS Controls v8.1 Assessment</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f0f2f5; font-size: 0.9rem; }
+    .navbar-brand { font-size: 1rem; font-weight: 600; }
+
+    /* Stats */
+    .stat-card { border: none; border-radius: 10px; }
+    .stat-val { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .progress { height: 8px; border-radius: 4px; }
+
+    /* Filter bar */
+    .filter-bar { background: white; border-radius: 10px; padding: 0.65rem 1rem;
+                  box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+    /* Control cards */
+    .ctrl-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 0.75rem; overflow: hidden; }
+    .ctrl-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
+                   cursor: pointer; user-select: none; background: white; border: none; width: 100%; text-align: left; }
+    .ctrl-header:hover { background: #f8f9fa; }
+    .ctrl-num { min-width: 26px; background: #1a2b4a; color: white; border-radius: 4px;
+                font-size: 0.72rem; font-weight: 700; padding: 1px 5px; text-align: center; }
+    .ctrl-title { font-weight: 600; font-size: 0.88rem; flex: 1; }
+    .ctrl-meta { font-size: 0.72rem; color: #888; white-space: nowrap; }
+    .ctrl-score { font-size: 0.82rem; font-weight: 700; min-width: 38px; text-align: right; }
+    .ctrl-chevron { color: #999; font-size: 0.75rem; transition: transform 0.2s; }
+    .ctrl-header.collapsed .ctrl-chevron { transform: rotate(-90deg); }
+    .ctrl-body { border-top: 1px solid #f0f0f0; padding: 0 1rem; }
+
+    /* Safeguard rows */
+    .sg-row { display: grid; grid-template-columns: 52px 1fr 170px 64px;
+              gap: 0.5rem; align-items: start; padding: 0.5rem 0;
+              border-bottom: 1px solid #f5f5f5; }
+    .sg-row:last-child { border-bottom: none; }
+    .sg-row.hidden { display: none; }
+    .sg-id { font-weight: 700; color: #1a2b4a; font-size: 0.8rem; padding-top: 3px; }
+    .sg-title-text { font-size: 0.86rem; cursor: pointer; }
+    .sg-title-text:hover { text-decoration: underline; }
+    .sg-badges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+    .fn-badge, .ac-badge, .ig-badge { font-size: 0.62rem; padding: 1px 5px; border-radius: 3px; font-weight: 600; white-space: nowrap; }
+    .fn-Govern   { background:#ffeeba; color:#856404; }
+    .fn-Identify { background:#cce5ff; color:#004085; }
+    .fn-Protect  { background:#d4edda; color:#155724; }
+    .fn-Detect   { background:#f8d7da; color:#721c24; }
+    .fn-Respond  { background:#fff3cd; color:#856404; }
+    .fn-Recover  { background:#d1ecf1; color:#0c5460; }
+    .ac-badge    { background:#e9ecef; color:#495057; }
+    .ig1 { background:#d4edda; color:#155724; }
+    .ig2 { background:#cce5ff; color:#004085; }
+    .ig3 { background:#e2d9f3; color:#4a1d7e; }
+    .sg-desc { font-size: 0.78rem; color: #555; margin-top: 4px; line-height: 1.45; display: none; }
+    .sg-desc.open { display: block; }
+    .notes-area { display: none; width: 100%; margin-top: 4px; font-size: 0.78rem;
+                  border: 1px solid #ddd; border-radius: 4px; padding: 4px 6px;
+                  resize: vertical; min-height: 48px; }
+    .notes-area.open { display: block; }
+    .updated-lbl { font-size: 0.65rem; color: #aaa; margin-top: 2px; }
+    .status-select { font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; width: 100%; cursor: pointer; border: 1px solid #ccc; }
+    .s-not_assessed    { background:#f8f9fa; color:#6c757d; }
+    .s-not_implemented { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
+    .s-partial         { background:#fff3cd; color:#856404; border-color:#ffeeba; }
+    .s-implemented     { background:#d4edda; color:#155724; border-color:#c3e6cb; }
+    .s-not_applicable  { background:#e2e3e5; color:#383d41; }
+    .flash-saved { font-size: 0.65rem; color: #28a745; opacity: 0; transition: opacity 0.3s; text-align: center; }
+    .flash-saved.on { opacity: 1; }
+    .notes-btn { font-size: 0.72rem; padding: 2px 8px; white-space: nowrap; }
+    .no-match { text-align: center; color: #999; padding: 2rem 0; font-size: 0.85rem; display: none; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-3 py-2" style="background:#1a2b4a">
+  <span class="navbar-brand">CIS Controls v8.1 — Compliance Assessment</span>
+  <a href="/api/export" class="btn btn-sm btn-outline-light">Export CSV</a>
+</nav>
+
+<div class="container-fluid px-3 py-3" style="max-width:1200px">
+
+  <!-- Stats -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card stat-card shadow-sm text-center p-3">
+        <div class="text-muted small mb-1">Total Safeguards</div>
+        <div class="stat-val">153</div>
+        <div class="text-muted mt-1" style="font-size:0.72rem" id="statAssessed">0 assessed</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card shadow-sm text-center p-3">
+        <div class="text-muted small mb-1">IG1 Score</div>
+        <div class="stat-val text-success" id="statIG1">0%</div>
+        <div class="progress mt-2"><div class="progress-bar bg-success" id="barIG1" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card shadow-sm text-center p-3">
+        <div class="text-muted small mb-1">IG2 Score</div>
+        <div class="stat-val text-primary" id="statIG2">0%</div>
+        <div class="progress mt-2"><div class="progress-bar bg-primary" id="barIG2" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card stat-card shadow-sm text-center p-3">
+        <div class="text-muted small mb-1">IG3 Score</div>
+        <div class="stat-val" id="statIG3" style="color:#6f42c1">0%</div>
+        <div class="progress mt-2"><div class="progress-bar" id="barIG3" style="width:0%;background:#6f42c1"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar d-flex flex-wrap gap-2 align-items-center mb-3">
+    <select class="form-select form-select-sm" id="fIG" style="width:auto" onchange="applyFilters()">
+      <option value="all">All IG Levels</option>
+      <option value="ig1">IG1 only</option>
+      <option value="ig2">IG1 + IG2</option>
+      <option value="ig3">All (IG1+2+3)</option>
+    </select>
+    <select class="form-select form-select-sm" id="fStatus" style="width:auto" onchange="applyFilters()">
+      <option value="all">All Statuses</option>
+      <option value="not_assessed">Not Assessed</option>
+      <option value="not_implemented">Not Implemented</option>
+      <option value="partial">Partially Implemented</option>
+      <option value="implemented">Fully Implemented</option>
+      <option value="not_applicable">Not Applicable</option>
+    </select>
+    <select class="form-select form-select-sm" id="fFn" style="width:auto" onchange="applyFilters()">
+      <option value="all">All Functions</option>
+      <option value="Govern">Govern</option>
+      <option value="Identify">Identify</option>
+      <option value="Protect">Protect</option>
+      <option value="Detect">Detect</option>
+      <option value="Respond">Respond</option>
+      <option value="Recover">Recover</option>
+    </select>
+    <input type="search" class="form-control form-control-sm" id="fSearch"
+           placeholder="Search..." style="max-width:200px" oninput="applyFilters()">
+    <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="setAllOpen(true)">Expand All</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="setAllOpen(false)">Collapse All</button>
+  </div>
+
+  <!-- Controls -->
+  {% for ctrl in controls %}
+  <div class="ctrl-card" id="ctrl-{{ ctrl.id }}">
+    <button class="ctrl-header" onclick="toggleCtrl({{ ctrl.id }})">
+      <span class="ctrl-num">{{ ctrl.id }}</span>
+      <span class="ctrl-title">{{ ctrl.title }}</span>
+      <span class="ctrl-meta" id="ctrlmeta-{{ ctrl.id }}">{{ ctrl.safeguards|length }} safeguards</span>
+      <span class="ctrl-score" id="ctrlscore-{{ ctrl.id }}">—</span>
+      <span class="ctrl-chevron">&#9660;</span>
+    </button>
+    <div class="ctrl-body" id="ctrlbody-{{ ctrl.id }}">
+      {% for sg in ctrl.safeguards %}
+      <div class="sg-row"
+           id="sgrow-{{ sg.id }}"
+           data-ig1="{{ 'true' if sg.ig1 else 'false' }}"
+           data-ig2="{{ 'true' if sg.ig2 else 'false' }}"
+           data-ig3="{{ 'true' if sg.ig3 else 'false' }}"
+           data-fn="{{ sg.function }}"
+           data-search="{{ sg.id|lower }} {{ sg.title|lower }} {{ sg.description|lower }}">
+        <div class="sg-id">{{ sg.id }}</div>
+        <div>
+          <div class="sg-title-text" onclick="toggleDesc('{{ sg.id }}')">{{ sg.title }}</div>
+          <div class="sg-badges">
+            <span class="fn-badge fn-{{ sg.function }}">{{ sg.function }}</span>
+            <span class="ac-badge">{{ sg.asset_class }}</span>
+            {% if sg.ig1 %}<span class="ig-badge ig1">IG1</span>{% endif %}
+            {% if sg.ig2 %}<span class="ig-badge ig2">IG2</span>{% endif %}
+            {% if sg.ig3 %}<span class="ig-badge ig3">IG3</span>{% endif %}
+          </div>
+          <div class="sg-desc" id="desc-{{ sg.id }}">{{ sg.description }}</div>
+          <textarea class="notes-area" id="notes-{{ sg.id }}" placeholder="Assessment notes..."></textarea>
+          <div class="updated-lbl" id="updated-{{ sg.id }}"></div>
+        </div>
+        <div>
+          <select class="status-select s-not_assessed" id="status-{{ sg.id }}"
+                  onchange="onStatusChange('{{ sg.id }}', this)">
+            <option value="not_assessed">Not Assessed</option>
+            <option value="not_implemented">Not Implemented</option>
+            <option value="partial">Partially Implemented</option>
+            <option value="implemented">Fully Implemented</option>
+            <option value="not_applicable">Not Applicable</option>
+          </select>
+          <div class="flash-saved" id="flash-{{ sg.id }}">&#10003; Saved</div>
+        </div>
+        <div>
+          <button class="btn btn-outline-secondary notes-btn" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="no-match" id="nomatch-{{ ctrl.id }}">No safeguards match the current filters.</div>
+    </div>
+  </div>
+  {% endfor %}
+
+</div>
+
+<script>
+// --- State ---
+let assessments = {};
+
+// --- Boot ---
+async function init() {
+  const res = await fetch('/api/assessments');
+  assessments = await res.json();
+
+  // Apply saved assessment data to DOM
+  for (const [id, a] of Object.entries(assessments)) {
+    const sel = document.getElementById('status-' + id);
+    if (sel) {
+      sel.value = a.status;
+      setSelectStyle(sel, a.status);
+    }
+    const notes = document.getElementById('notes-' + id);
+    if (notes && a.notes) notes.value = a.notes;
+    const upd = document.getElementById('updated-' + id);
+    if (upd && a.updated_at) upd.textContent = 'Updated ' + a.updated_at;
+  }
+
+  // Attach notes save handlers
+  document.querySelectorAll('.notes-area').forEach(ta => {
+    const id = ta.id.replace('notes-', '');
+    ta.addEventListener('blur', () => saveAssessment(id));
+    ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') saveAssessment(id); });
+  });
+
+  updateStats();
+  updateControlScores();
+}
+
+// --- Toggle helpers ---
+function toggleDesc(id) {
+  document.getElementById('desc-' + id).classList.toggle('open');
+}
+
+function toggleNotes(id) {
+  document.getElementById('notes-' + id).classList.toggle('open');
+}
+
+function toggleCtrl(id) {
+  const body = document.getElementById('ctrlbody-' + id);
+  const hdr  = body.previousElementSibling;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  hdr.classList.toggle('collapsed', !isHidden);
+}
+
+function setAllOpen(open) {
+  document.querySelectorAll('.ctrl-body').forEach(b => {
+    b.style.display = open ? '' : 'none';
+    b.previousElementSibling.classList.toggle('collapsed', !open);
+  });
+}
+
+// --- Status / Save ---
+function setSelectStyle(sel, status) {
+  sel.className = 'status-select s-' + status;
+}
+
+function onStatusChange(id, sel) {
+  setSelectStyle(sel, sel.value);
+  saveAssessment(id);
+}
+
+async function saveAssessment(id) {
+  const status = document.getElementById('status-' + id).value;
+  const notes  = document.getElementById('notes-' + id).value;
+  const res = await fetch('/api/assessments/' + id, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, notes })
+  });
+  const data = await res.json();
+  assessments[id] = { status, notes, updated_at: data.updated_at };
+  const upd = document.getElementById('updated-' + id);
+  if (upd) upd.textContent = 'Updated ' + data.updated_at;
+  const flash = document.getElementById('flash-' + id);
+  if (flash) { flash.classList.add('on'); setTimeout(() => flash.classList.remove('on'), 1500); }
+  updateStats();
+  updateControlScores();
+}
+
+// --- Stats ---
+function getStatus(id) {
+  const sel = document.getElementById('status-' + id);
+  return sel ? sel.value : 'not_assessed';
+}
+
+function scoreVal(status) {
+  if (status === 'implemented') return 1;
+  if (status === 'partial') return 0.5;
+  if (status === 'not_applicable') return null;
+  return 0;
+}
+
+function updateStats() {
+  let assessed = 0;
+  const ig = { ig1: {t:0, s:0}, ig2: {t:0, s:0}, ig3: {t:0, s:0} };
+
+  document.querySelectorAll('.sg-row').forEach(row => {
+    const id = row.id.replace('sgrow-', '');
+    const status = getStatus(id);
+    if (status !== 'not_assessed') assessed++;
+    for (const k of ['ig1','ig2','ig3']) {
+      if (row.dataset[k] === 'true') {
+        const v = scoreVal(status);
+        if (v !== null) { ig[k].t++; ig[k].s += v; }
+      }
+    }
+  });
+
+  document.getElementById('statAssessed').textContent = assessed + ' assessed';
+  for (const k of ['ig1','ig2','ig3']) {
+    const pct = ig[k].t === 0 ? 0 : Math.round((ig[k].s / ig[k].t) * 100);
+    document.getElementById('stat' + k.toUpperCase()).textContent = pct + '%';
+    document.getElementById('bar' + k.toUpperCase()).style.width = pct + '%';
+  }
+}
+
+function updateControlScores() {
+  document.querySelectorAll('.ctrl-card').forEach(card => {
+    const id = card.id.replace('ctrl-', '');
+    const rows = card.querySelectorAll('.sg-row');
+    let total = 0, scored = 0;
+    rows.forEach(row => {
+      const sgId = row.id.replace('sgrow-', '');
+      const v = scoreVal(getStatus(sgId));
+      if (v !== null) { total++; scored += v; }
+    });
+    const pct = total === 0 ? 0 : Math.round((scored / total) * 100);
+    const scoreEl = document.getElementById('ctrlscore-' + id);
+    if (scoreEl) {
+      scoreEl.textContent = pct + '%';
+      scoreEl.style.color = pct >= 80 ? '#28a745' : pct >= 50 ? '#fd7e14' : pct > 0 ? '#dc3545' : '#6c757d';
+    }
+  });
+}
+
+// --- Filtering ---
+function applyFilters() {
+  const fIG     = document.getElementById('fIG').value;
+  const fStatus = document.getElementById('fStatus').value;
+  const fFn     = document.getElementById('fFn').value;
+  const fSearch = document.getElementById('fSearch').value.toLowerCase().trim();
+
+  // IG level map: which data attributes must be true
+  const igKeys = { all: [], ig1: ['ig1'], ig2: ['ig1','ig2'], ig3: ['ig1','ig2','ig3'] };
+  const required = igKeys[fIG];
+
+  document.querySelectorAll('.ctrl-card').forEach(card => {
+    const ctrlId = card.id.replace('ctrl-', '');
+    let anyVisible = false;
+
+    card.querySelectorAll('.sg-row').forEach(row => {
+      const id = row.id.replace('sgrow-', '');
+      let show = true;
+
+      // IG filter: show row if any of the required IG keys is true
+      if (required.length > 0 && !required.some(k => row.dataset[k] === 'true')) show = false;
+
+      // Function filter
+      if (show && fFn !== 'all' && row.dataset.fn !== fFn) show = false;
+
+      // Status filter
+      if (show && fStatus !== 'all' && getStatus(id) !== fStatus) show = false;
+
+      // Search filter
+      if (show && fSearch && !row.dataset.search.includes(fSearch)) show = false;
+
+      row.classList.toggle('hidden', !show);
+      if (show) anyVisible = true;
+    });
+
+    // Show/hide no-match message and control card
+    const noMatch = document.getElementById('nomatch-' + ctrlId);
+    if (noMatch) noMatch.style.display = anyVisible ? 'none' : 'block';
+    card.style.display = anyVisible ? '' : 'none';
+  });
+}
+
+init();
+</script>
+</body>
+</html>
