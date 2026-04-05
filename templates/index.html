@@ -33,7 +33,7 @@
     .ctrl-body { border-top: 1px solid #f0f0f0; padding: 0 1rem; }
 
     /* Safeguard rows */
-    .sg-row { display: grid; grid-template-columns: 52px 1fr 170px 64px;
+    .sg-row { display: grid; grid-template-columns: 52px 1fr 170px 80px;
               gap: 0.5rem; align-items: start; padding: 0.5rem 0;
               border-bottom: 1px solid #f5f5f5; }
     .sg-row:last-child { border-bottom: none; }
@@ -72,6 +72,24 @@
     .note-add-form textarea { width: 100%; font-size: 0.78rem; border: 1px solid #ddd;
                               border-radius: 4px; padding: 4px 6px; resize: vertical; min-height: 44px; }
     .note-add-form .btn { margin-top: 4px; font-size: 0.72rem; padding: 2px 10px; }
+    /* Attachments panel */
+    .att-panel { display: none; margin-top: 6px; }
+    .att-panel.open { display: block; }
+    .att-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
+    .att-list li { font-size: 0.78rem; background: #f8f9fa; border-radius: 4px;
+                   padding: 5px 8px 5px 10px; margin-bottom: 4px; position: relative;
+                   border-left: 3px solid #0d6efd; }
+    .att-link { color: #0d6efd; text-decoration: none; word-break: break-all; }
+    .att-link:hover { text-decoration: underline; }
+    .att-meta { font-size: 0.65rem; color: #aaa; display: block; margin-top: 2px; }
+    .att-del  { position: absolute; top: 4px; right: 6px; background: none; border: none;
+                color: #ccc; font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0; }
+    .att-del:hover { color: #dc3545; }
+    .drop-zone { border: 2px dashed #ccc; border-radius: 4px; padding: 16px;
+                 text-align: center; font-size: 0.78rem; color: #888;
+                 background: #fafafa; cursor: pointer; transition: all 0.2s; }
+    .drop-zone.over { border-color: #0d6efd; background: #e7f1ff; color: #0d6efd; }
+    .drop-zone a { color: #0d6efd; }
     .s-not_assessed    { background:#f8f9fa; color:#6c757d; }
     .s-not_implemented { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
     .s-partial         { background:#fff3cd; color:#856404; border-color:#ffeeba; }
@@ -192,6 +210,16 @@
               <button class="btn btn-sm btn-outline-primary" onclick="submitNote('{{ sg.id }}')">Add Note</button>
             </div>
           </div>
+          <div class="att-panel" id="att-{{ sg.id }}">
+            <ul class="att-list" id="attlist-{{ sg.id }}"></ul>
+            <div class="drop-zone" id="dz-{{ sg.id }}"
+                 ondragover="dzOver(event)" ondragleave="dzLeave(event)"
+                 ondrop="dzDrop(event, '{{ sg.id }}')">
+              <input type="file" id="attinput-{{ sg.id }}" multiple style="display:none"
+                     onchange="handleFiles(this, '{{ sg.id }}')">
+              Drag files here or <a href="#" onclick="document.getElementById('attinput-{{ sg.id }}').click();return false">browse</a>
+            </div>
+          </div>
           <div class="updated-lbl" id="updated-{{ sg.id }}"></div>
         </div>
         <div>
@@ -207,6 +235,7 @@
         </div>
         <div>
           <button class="btn btn-outline-secondary notes-btn" id="notesbtn-{{ sg.id }}" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
+          <button class="btn btn-outline-secondary notes-btn mt-1" id="attbtn-{{ sg.id }}" onclick="toggleAtt('{{ sg.id }}')">Files</button>
         </div>
       </div>
       {% endfor %}
@@ -236,6 +265,7 @@ async function init() {
     const upd = document.getElementById('updated-' + id);
     if (upd && a.updated_at) upd.textContent = 'Updated ' + a.updated_at;
     renderNotes(id, a.notes || []);
+    renderAtts(id, a.attachments || []);
   }
 
   updateStats();
@@ -284,7 +314,7 @@ async function saveAssessment(id) {
     body: JSON.stringify({ status })
   });
   const data = await res.json();
-  if (!assessments[id]) assessments[id] = { notes: [] };
+  if (!assessments[id]) assessments[id] = { notes: [], attachments: [] };
   assessments[id].status = status;
   assessments[id].updated_at = data.updated_at;
   const upd = document.getElementById('updated-' + id);
@@ -450,6 +480,82 @@ async function deleteNote(noteId, sgId) {
   if (assessments[sgId]) {
     assessments[sgId].notes = assessments[sgId].notes.filter(n => n.id !== noteId);
     updateNotesBtn(sgId, assessments[sgId].notes.length);
+  }
+}
+
+// --- Attachments ---
+function toggleAtt(id) {
+  document.getElementById('att-' + id).classList.toggle('open');
+}
+
+function dzOver(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+function dzLeave(e) { e.currentTarget.classList.remove('over'); }
+function dzDrop(e, sgId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  for (const f of e.dataTransfer.files) uploadFile(sgId, f);
+}
+function handleFiles(input, sgId) {
+  for (const f of input.files) uploadFile(sgId, f);
+  input.value = '';
+}
+
+async function uploadFile(sgId, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/assessments/' + sgId + '/attachments', {
+    method: 'POST', body: fd
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+    alert(err.error);
+    return;
+  }
+  const att = await res.json();
+  document.getElementById('attlist-' + sgId).appendChild(makeAttEl(sgId, att));
+  if (!assessments[sgId]) assessments[sgId] = { notes: [], attachments: [] };
+  if (!assessments[sgId].attachments) assessments[sgId].attachments = [];
+  assessments[sgId].attachments.push(att);
+  updateAttBtn(sgId, assessments[sgId].attachments.length);
+}
+
+function renderAtts(sgId, atts) {
+  const list = document.getElementById('attlist-' + sgId);
+  if (!list) return;
+  list.innerHTML = '';
+  for (const a of atts) list.appendChild(makeAttEl(sgId, a));
+  updateAttBtn(sgId, atts.length);
+}
+
+function makeAttEl(sgId, att) {
+  const li = document.createElement('li');
+  li.id = 'att-item-' + att.id;
+  li.innerHTML =
+    '<a class="att-link" href="/api/attachments/' + att.id + '" target="_blank">' + escHtml(att.filename) + '</a>' +
+    '<span class="att-meta">' + fmtSize(att.size) + ' &mdash; ' + att.uploaded_at + '</span>' +
+    '<button class="att-del" title="Delete" onclick="deleteAtt(' + att.id + ',\'' + sgId + '\')">&times;</button>';
+  return li;
+}
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function updateAttBtn(sgId, count) {
+  const btn = document.getElementById('attbtn-' + sgId);
+  if (btn) btn.textContent = count > 0 ? 'Files (' + count + ')' : 'Files';
+}
+
+async function deleteAtt(attId, sgId) {
+  const res = await fetch('/api/attachments/' + attId, { method: 'DELETE' });
+  if (!res.ok) return;
+  const el = document.getElementById('att-item-' + attId);
+  if (el) el.remove();
+  if (assessments[sgId] && assessments[sgId].attachments) {
+    assessments[sgId].attachments = assessments[sgId].attachments.filter(a => a.id !== attId);
+    updateAttBtn(sgId, assessments[sgId].attachments.length);
   }
 }
 
