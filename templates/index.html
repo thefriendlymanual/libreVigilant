@@ -1,156 +1,529 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CIS Controls v8.1 Assessment</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background: #f0f2f5; font-size: 0.9rem; }
-    .navbar-brand { font-size: 1rem; font-weight: 600; }
+    /* =============================================
+       DESIGN SYSTEM TOKENS — see /DESIGN_SYSTEM.md
+    ============================================= */
+    :root {
+      --brand-primary:  #1e3a5f;
+      --brand-accent:   #3b82f6;
 
-    /* Stats */
-    .stat-card { border: none; border-radius: 10px; }
-    .stat-val { font-size: 2rem; font-weight: 700; line-height: 1; }
-    .progress { height: 8px; border-radius: 4px; }
+      --bg-page:        #f0f4f8;
+      --bg-surface:     #ffffff;
+      --bg-surface-2:   #f8fafc;
+      --bg-surface-3:   #f1f5f9;
 
-    /* Filter bar */
-    .filter-bar { background: white; border-radius: 10px; padding: 0.65rem 1rem;
-                  box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+      --border:         #e2e8f0;
+      --border-strong:  #cbd5e1;
 
-    /* Control cards */
-    .ctrl-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 0.75rem; overflow: hidden; }
-    .ctrl-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
-                   cursor: pointer; user-select: none; background: white; border: none; width: 100%; text-align: left; }
-    .ctrl-header:hover { background: #f8f9fa; }
-    .ctrl-num { min-width: 26px; background: #1a2b4a; color: white; border-radius: 4px;
-                font-size: 0.72rem; font-weight: 700; padding: 1px 5px; text-align: center; }
-    .ctrl-title { font-weight: 600; font-size: 0.88rem; flex: 1; }
-    .ctrl-meta { font-size: 0.72rem; color: #888; white-space: nowrap; }
-    .ctrl-score { font-size: 0.82rem; font-weight: 700; min-width: 38px; text-align: right; }
-    .ctrl-chevron { color: #999; font-size: 0.75rem; transition: transform 0.2s; }
+      --text-primary:   #0f172a;
+      --text-secondary: #475569;
+      --text-muted:     #94a3b8;
+      --text-link:      #3b82f6;
+
+      --color-success:  #16a34a;
+      --color-warning:  #d97706;
+      --color-danger:   #dc2626;
+      --color-info:     #2563eb;
+      --color-purple:   #7c3aed;
+
+      --status-na-bg:    #f8fafc; --status-na-color:    #64748b; --status-na-border:    #e2e8f0;
+      --status-ni-bg:    #fef2f2; --status-ni-color:    #991b1b; --status-ni-border:    #fecaca;
+      --status-pa-bg:    #fffbeb; --status-pa-color:    #92400e; --status-pa-border:    #fde68a;
+      --status-im-bg:    #f0fdf4; --status-im-color:    #166534; --status-im-border:    #bbf7d0;
+      --status-np-bg:    #f1f5f9; --status-np-color:    #475569; --status-np-border:    #e2e8f0;
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+
+      --radius-sm:   6px;
+      --radius-md:   10px;
+      --radius-pill: 999px;
+
+      --navbar-bg:   #1e3a5f;
+    }
+
+    [data-theme="dark"] {
+      --brand-accent:   #58a6ff;
+
+      --bg-page:        #0d1117;
+      --bg-surface:     #161b22;
+      --bg-surface-2:   #21262d;
+      --bg-surface-3:   #2d333b;
+
+      --border:         #30363d;
+      --border-strong:  #484f58;
+
+      --text-primary:   #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-muted:     #6e7681;
+      --text-link:      #58a6ff;
+
+      --color-success:  #3fb950;
+      --color-warning:  #d29922;
+      --color-danger:   #f85149;
+      --color-info:     #58a6ff;
+      --color-purple:   #bc8cff;
+
+      --status-na-bg:    #21262d; --status-na-color:    #8b949e; --status-na-border:    #30363d;
+      --status-ni-bg:    #2d1b1b; --status-ni-color:    #f85149; --status-ni-border:    #5a1f1f;
+      --status-pa-bg:    #2d2208; --status-pa-color:    #d29922; --status-pa-border:    #5a4008;
+      --status-im-bg:    #0d2818; --status-im-color:    #3fb950; --status-im-border:    #1a4d2a;
+      --status-np-bg:    #21262d; --status-np-color:    #6e7681; --status-np-border:    #30363d;
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+
+      --navbar-bg:   #161b22;
+    }
+
+    /* =============================================
+       BASE
+    ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* =============================================
+       NAVBAR
+    ============================================= */
+    .app-nav {
+      background: var(--navbar-bg);
+      padding: 0.55rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.07), 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .app-nav-brand {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #f0f6fc;
+      letter-spacing: 0.01em;
+      flex: 1;
+    }
+    .app-nav-brand small {
+      opacity: 0.55;
+      font-weight: 400;
+      font-size: 0.78rem;
+      margin-left: 0.5rem;
+    }
+    .btn-nav {
+      font-size: 0.73rem;
+      padding: 0.28rem 0.8rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255,255,255,0.22);
+      background: transparent;
+      color: #f0f6fc;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .btn-nav:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.4); color: #fff; }
+    .btn-theme {
+      width: 32px; height: 32px; padding: 0;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    /* =============================================
+       PAGE WRAPPER
+    ============================================= */
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 1.1rem 1rem 2rem; }
+
+    /* =============================================
+       STAT CARDS
+    ============================================= */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.65rem;
+      margin-bottom: 0.8rem;
+    }
+    @media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.9rem 1.1rem;
+    }
+    .stat-label {
+      font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-muted); margin-bottom: 0.2rem;
+    }
+    .stat-val { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
+    .stat-sub { font-size: 0.67rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .stat-card.c-total .stat-val  { color: var(--text-primary); }
+    .stat-card.c-ig1   .stat-val  { color: var(--color-success); }
+    .stat-card.c-ig2   .stat-val  { color: var(--color-info); }
+    .stat-card.c-ig3   .stat-val  { color: var(--color-purple); }
+
+    .progress-track {
+      height: 4px; border-radius: var(--radius-pill);
+      background: var(--bg-surface-3); overflow: hidden; margin-top: 0.4rem;
+    }
+    .progress-fill {
+      height: 100%; border-radius: var(--radius-pill);
+      transition: width 0.5s ease;
+    }
+    .c-ig1 .progress-fill { background: var(--color-success); }
+    .c-ig2 .progress-fill { background: var(--color-info); }
+    .c-ig3 .progress-fill { background: var(--color-purple); }
+
+    /* =============================================
+       FILTER BAR
+    ============================================= */
+    .filter-bar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.55rem 0.9rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+    .filter-select, .filter-search {
+      font-size: 0.76rem;
+      padding: 0.28rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-2);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .filter-select { appearance: none; padding-right: 1.5rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center; }
+    .filter-select option { background: var(--bg-surface); color: var(--text-primary); }
+    .filter-search { min-width: 0; flex: 1; max-width: 200px; }
+    .filter-select:focus, .filter-search:focus {
+      outline: none; border-color: var(--brand-accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+    .filter-search::placeholder { color: var(--text-muted); }
+    .btn-filter {
+      font-size: 0.73rem; padding: 0.28rem 0.75rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-filter:hover { background: var(--bg-surface-3); border-color: var(--border-strong); color: var(--text-primary); }
+    .filter-spacer { flex: 1; }
+
+    /* =============================================
+       CONTROL CARDS
+    ============================================= */
+    .ctrl-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 0.55rem;
+      overflow: hidden;
+    }
+    .ctrl-header {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.6rem 0.9rem;
+      cursor: pointer; user-select: none;
+      background: transparent; border: none;
+      width: 100%; text-align: left;
+      color: var(--text-primary);
+      transition: background 0.12s;
+    }
+    .ctrl-header:hover { background: var(--bg-surface-2); }
+    .ctrl-num {
+      min-width: 26px; height: 20px;
+      background: var(--brand-primary);
+      color: #fff; border-radius: var(--radius-sm);
+      font-size: 0.67rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .ctrl-num { background: var(--bg-surface-3); color: var(--text-secondary); }
+    .ctrl-title { font-weight: 600; font-size: 0.86rem; flex: 1; color: var(--text-primary); }
+    .ctrl-meta { font-size: 0.67rem; color: var(--text-muted); white-space: nowrap; }
+    .ctrl-score { font-size: 0.78rem; font-weight: 700; min-width: 38px; text-align: right; }
+    .ctrl-chevron { color: var(--text-muted); font-size: 0.65rem; transition: transform 0.2s; flex-shrink: 0; }
     .ctrl-header.collapsed .ctrl-chevron { transform: rotate(-90deg); }
-    .ctrl-body { border-top: 1px solid #f0f0f0; padding: 0 1rem; }
+    .ctrl-body { border-top: 1px solid var(--border); padding: 0 0.9rem; }
 
-    /* Safeguard rows */
-    .sg-row { display: grid; grid-template-columns: 52px 1fr 170px 80px;
-              gap: 0.5rem; align-items: start; padding: 0.5rem 0;
-              border-bottom: 1px solid #f5f5f5; }
+    /* =============================================
+       SAFEGUARD ROWS
+    ============================================= */
+    .sg-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 170px 82px;
+      gap: 0.5rem; align-items: start;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
     .sg-row:last-child { border-bottom: none; }
     .sg-row.hidden { display: none; }
-    .sg-id { font-weight: 700; color: #1a2b4a; font-size: 0.8rem; padding-top: 3px; }
-    .sg-title-text { font-size: 0.86rem; cursor: pointer; }
-    .sg-title-text:hover { text-decoration: underline; }
-    .sg-badges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
-    .fn-badge, .ac-badge, .ig-badge { font-size: 0.62rem; padding: 1px 5px; border-radius: 3px; font-weight: 600; white-space: nowrap; }
-    .fn-Govern   { background:#ffeeba; color:#856404; }
-    .fn-Identify { background:#cce5ff; color:#004085; }
-    .fn-Protect  { background:#d4edda; color:#155724; }
-    .fn-Detect   { background:#f8d7da; color:#721c24; }
-    .fn-Respond  { background:#fff3cd; color:#856404; }
-    .fn-Recover  { background:#d1ecf1; color:#0c5460; }
-    .ac-badge    { background:#e9ecef; color:#495057; }
-    .ig1 { background:#d4edda; color:#155724; }
-    .ig2 { background:#cce5ff; color:#004085; }
-    .ig3 { background:#e2d9f3; color:#4a1d7e; }
-    .sg-desc { font-size: 0.78rem; color: #555; margin-top: 4px; line-height: 1.45; display: none; }
+
+    .sg-id {
+      font-weight: 700; font-size: 0.75rem;
+      color: var(--brand-accent); padding-top: 3px;
+    }
+    [data-theme="dark"] .sg-id { color: var(--color-info); }
+
+    .sg-title-text {
+      font-size: 0.84rem; cursor: pointer;
+      color: var(--text-primary); line-height: 1.4;
+      transition: color 0.12s;
+    }
+    .sg-title-text:hover { color: var(--text-link); }
+
+    .sg-badges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+
+    .fn-badge, .ac-badge, .ig-badge {
+      font-size: 0.58rem; padding: 2px 6px;
+      border-radius: var(--radius-pill);
+      font-weight: 700; white-space: nowrap; letter-spacing: 0.02em;
+    }
+    /* Function badges — light */
+    .fn-Govern   { background:#fef3c7; color:#92400e; }
+    .fn-Identify { background:#dbeafe; color:#1e40af; }
+    .fn-Protect  { background:#dcfce7; color:#166534; }
+    .fn-Detect   { background:#fee2e2; color:#991b1b; }
+    .fn-Respond  { background:#ffedd5; color:#9a3412; }
+    .fn-Recover  { background:#cffafe; color:#155e75; }
+    /* Function badges — dark */
+    [data-theme="dark"] .fn-Govern   { background:#2d1f00; color:#fbbf24; }
+    [data-theme="dark"] .fn-Identify { background:#0c1f3d; color:#60a5fa; }
+    [data-theme="dark"] .fn-Protect  { background:#052e16; color:#4ade80; }
+    [data-theme="dark"] .fn-Detect   { background:#2d0a0a; color:#f87171; }
+    [data-theme="dark"] .fn-Respond  { background:#2d1500; color:#fb923c; }
+    [data-theme="dark"] .fn-Recover  { background:#0a2d2d; color:#22d3ee; }
+
+    .ac-badge { background: var(--bg-surface-3); color: var(--text-secondary); border: 1px solid var(--border); }
+
+    /* IG badges — light */
+    .ig1 { background:#dcfce7; color:#166534; }
+    .ig2 { background:#dbeafe; color:#1e40af; }
+    .ig3 { background:#f3e8ff; color:#6b21a8; }
+    /* IG badges — dark */
+    [data-theme="dark"] .ig1 { background:#052e16; color:#4ade80; }
+    [data-theme="dark"] .ig2 { background:#0c1f3d; color:#60a5fa; }
+    [data-theme="dark"] .ig3 { background:#1e0a3c; color:#c084fc; }
+
+    .sg-desc {
+      font-size: 0.76rem; color: var(--text-secondary);
+      margin-top: 6px; line-height: 1.55; display: none;
+      padding: 8px 10px;
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--border-strong);
+    }
     .sg-desc.open { display: block; }
-    .updated-lbl { font-size: 0.65rem; color: #aaa; margin-top: 2px; }
-    .status-select { font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; width: 100%; cursor: pointer; border: 1px solid #ccc; }
-    /* Notes panel */
-    .notes-panel { display: none; margin-top: 6px; }
+    .updated-lbl { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
+
+    /* =============================================
+       STATUS SELECT
+    ============================================= */
+    .status-select {
+      font-size: 0.73rem; padding: 4px 22px 4px 8px;
+      border-radius: var(--radius-sm); width: 100%;
+      cursor: pointer; border: 1px solid; font-weight: 500;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 7px center;
+      transition: box-shadow 0.15s;
+    }
+    .status-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+    .s-not_assessed    { background:var(--status-na-bg); color:var(--status-na-color); border-color:var(--status-na-border); }
+    .s-not_implemented { background:var(--status-ni-bg); color:var(--status-ni-color); border-color:var(--status-ni-border); }
+    .s-partial         { background:var(--status-pa-bg); color:var(--status-pa-color); border-color:var(--status-pa-border); }
+    .s-implemented     { background:var(--status-im-bg); color:var(--status-im-color); border-color:var(--status-im-border); }
+    .s-not_applicable  { background:var(--status-np-bg); color:var(--status-np-color); border-color:var(--status-np-border); }
+
+    .flash-saved {
+      font-size: 0.62rem; color: var(--color-success);
+      opacity: 0; transition: opacity 0.3s;
+      text-align: center; margin-top: 4px; font-weight: 600;
+    }
+    .flash-saved.on { opacity: 1; }
+
+    /* =============================================
+       ACTION BUTTONS (Notes / Files)
+    ============================================= */
+    .action-btns { display: flex; flex-direction: column; gap: 4px; }
+    .btn-action {
+      font-size: 0.68rem; padding: 3px 6px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      cursor: pointer; transition: all 0.15s;
+      white-space: nowrap; text-align: center; width: 100%;
+    }
+    .btn-action:hover { background: var(--bg-surface-3); border-color: var(--border-strong); color: var(--text-primary); }
+    .btn-action.has-items { border-color: var(--brand-accent); color: var(--brand-accent); }
+
+    /* =============================================
+       NOTES PANEL
+    ============================================= */
+    .notes-panel { display: none; margin-top: 8px; }
     .notes-panel.open { display: block; }
     .notes-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
-    .notes-list li { font-size: 0.78rem; background: #f8f9fa; border-radius: 4px;
-                     padding: 5px 8px 5px 10px; margin-bottom: 4px; position: relative;
-                     border-left: 3px solid #1a2b4a; }
-    .note-body { display: block; white-space: pre-wrap; word-break: break-word; }
-    .note-ts   { font-size: 0.65rem; color: #aaa; display: block; margin-top: 2px; }
-    .note-del  { position: absolute; top: 4px; right: 6px; background: none; border: none;
-                 color: #ccc; font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0; }
-    .note-del:hover { color: #dc3545; }
-    .note-add-form textarea { width: 100%; font-size: 0.78rem; border: 1px solid #ddd;
-                              border-radius: 4px; padding: 4px 6px; resize: vertical; min-height: 44px; }
-    .note-add-form .btn { margin-top: 4px; font-size: 0.72rem; padding: 2px 10px; }
-    /* Attachments panel */
-    .att-panel { display: none; margin-top: 6px; }
+    .notes-list li {
+      font-size: 0.76rem;
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-sm);
+      padding: 6px 28px 6px 10px;
+      margin-bottom: 4px; position: relative;
+      border-left: 3px solid var(--brand-primary);
+    }
+    [data-theme="dark"] .notes-list li { border-left-color: var(--color-info); }
+    .note-body { display: block; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); }
+    .note-ts   { font-size: 0.62rem; color: var(--text-muted); display: block; margin-top: 3px; }
+    .note-del  {
+      position: absolute; top: 6px; right: 7px;
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0;
+    }
+    .note-del:hover { color: var(--color-danger); }
+    .note-add-form textarea {
+      width: 100%; font-size: 0.76rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 6px 8px; resize: vertical; min-height: 46px;
+      background: var(--bg-surface); color: var(--text-primary);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .note-add-form textarea:focus {
+      outline: none; border-color: var(--brand-accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .note-add-form textarea::placeholder { color: var(--text-muted); }
+    .btn-add-note {
+      margin-top: 5px; font-size: 0.7rem; padding: 3px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--brand-accent);
+      background: transparent; color: var(--brand-accent);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-add-note:hover { background: var(--brand-accent); color: #fff; }
+
+    /* =============================================
+       ATTACHMENTS PANEL
+    ============================================= */
+    .att-panel { display: none; margin-top: 8px; }
     .att-panel.open { display: block; }
     .att-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
-    .att-list li { font-size: 0.78rem; background: #f8f9fa; border-radius: 4px;
-                   padding: 5px 8px 5px 10px; margin-bottom: 4px; position: relative;
-                   border-left: 3px solid #0d6efd; }
-    .att-link { color: #0d6efd; text-decoration: none; word-break: break-all; }
+    .att-list li {
+      font-size: 0.76rem;
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-sm);
+      padding: 6px 28px 6px 10px;
+      margin-bottom: 4px; position: relative;
+      border-left: 3px solid var(--color-info);
+    }
+    .att-link { color: var(--text-link); text-decoration: none; word-break: break-all; font-weight: 500; }
     .att-link:hover { text-decoration: underline; }
-    .att-meta { font-size: 0.65rem; color: #aaa; display: block; margin-top: 2px; }
-    .att-del  { position: absolute; top: 4px; right: 6px; background: none; border: none;
-                color: #ccc; font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0; }
-    .att-del:hover { color: #dc3545; }
-    .drop-zone { border: 2px dashed #ccc; border-radius: 4px; padding: 16px;
-                 text-align: center; font-size: 0.78rem; color: #888;
-                 background: #fafafa; cursor: pointer; transition: all 0.2s; }
-    .drop-zone.over { border-color: #0d6efd; background: #e7f1ff; color: #0d6efd; }
-    .drop-zone a { color: #0d6efd; }
-    .s-not_assessed    { background:#f8f9fa; color:#6c757d; }
-    .s-not_implemented { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
-    .s-partial         { background:#fff3cd; color:#856404; border-color:#ffeeba; }
-    .s-implemented     { background:#d4edda; color:#155724; border-color:#c3e6cb; }
-    .s-not_applicable  { background:#e2e3e5; color:#383d41; }
-    .flash-saved { font-size: 0.65rem; color: #28a745; opacity: 0; transition: opacity 0.3s; text-align: center; }
-    .flash-saved.on { opacity: 1; }
-    .notes-btn { font-size: 0.72rem; padding: 2px 8px; white-space: nowrap; }
-    .no-match { text-align: center; color: #999; padding: 2rem 0; font-size: 0.85rem; display: none; }
+    .att-meta { font-size: 0.62rem; color: var(--text-muted); display: block; margin-top: 3px; }
+    .att-del  {
+      position: absolute; top: 6px; right: 7px;
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0;
+    }
+    .att-del:hover { color: var(--color-danger); }
+    .drop-zone {
+      border: 2px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 14px; text-align: center;
+      font-size: 0.76rem; color: var(--text-muted);
+      background: var(--bg-surface-2);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .drop-zone.over { border-color: var(--brand-accent); background: var(--bg-surface-3); color: var(--text-link); }
+    .drop-zone a { color: var(--text-link); text-decoration: none; }
+    .drop-zone a:hover { text-decoration: underline; }
+
+    /* =============================================
+       NO MATCH
+    ============================================= */
+    .no-match {
+      text-align: center; color: var(--text-muted);
+      padding: 1.75rem 0; font-size: 0.82rem; display: none;
+    }
   </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark px-3 py-2" style="background:#1a2b4a">
-  <span class="navbar-brand">CIS Controls v8.1 — Compliance Assessment</span>
-  <a href="/api/export" class="btn btn-sm btn-outline-light">Export CSV</a>
+<!-- NAVBAR -->
+<nav class="app-nav">
+  <div class="app-nav-brand">
+    CIS Controls v8.1
+    <small>Compliance Assessment</small>
+  </div>
+  <a href="/api/export" class="btn-nav">
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4-4h2.5V3h3v5H12L8 12zm-6 2h12v-1H2v1z"/></svg>
+    Export CSV
+  </a>
+  <button class="btn-nav btn-theme" id="themeBtn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
 </nav>
 
-<div class="container-fluid px-3 py-3" style="max-width:1200px">
+<div class="page-wrap">
 
-  <!-- Stats -->
-  <div class="row g-3 mb-3">
-    <div class="col-6 col-md-3">
-      <div class="card stat-card shadow-sm text-center p-3">
-        <div class="text-muted small mb-1">Total Safeguards</div>
-        <div class="stat-val">153</div>
-        <div class="text-muted mt-1" style="font-size:0.72rem" id="statAssessed">0 assessed</div>
-      </div>
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card c-total">
+      <div class="stat-label">Total Safeguards</div>
+      <div class="stat-val">153</div>
+      <div class="stat-sub" id="statAssessed">0 assessed</div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card stat-card shadow-sm text-center p-3">
-        <div class="text-muted small mb-1">IG1 Score</div>
-        <div class="stat-val text-success" id="statIG1">0%</div>
-        <div class="progress mt-2"><div class="progress-bar bg-success" id="barIG1" style="width:0%"></div></div>
-      </div>
+    <div class="stat-card c-ig1">
+      <div class="stat-label">IG1 Score</div>
+      <div class="stat-val" id="statIG1">0%</div>
+      <div class="progress-track"><div class="progress-fill" id="barIG1" style="width:0%"></div></div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card stat-card shadow-sm text-center p-3">
-        <div class="text-muted small mb-1">IG2 Score</div>
-        <div class="stat-val text-primary" id="statIG2">0%</div>
-        <div class="progress mt-2"><div class="progress-bar bg-primary" id="barIG2" style="width:0%"></div></div>
-      </div>
+    <div class="stat-card c-ig2">
+      <div class="stat-label">IG2 Score</div>
+      <div class="stat-val" id="statIG2">0%</div>
+      <div class="progress-track"><div class="progress-fill" id="barIG2" style="width:0%"></div></div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card stat-card shadow-sm text-center p-3">
-        <div class="text-muted small mb-1">IG3 Score</div>
-        <div class="stat-val" id="statIG3" style="color:#6f42c1">0%</div>
-        <div class="progress mt-2"><div class="progress-bar" id="barIG3" style="width:0%;background:#6f42c1"></div></div>
-      </div>
+    <div class="stat-card c-ig3">
+      <div class="stat-label">IG3 Score</div>
+      <div class="stat-val" id="statIG3">0%</div>
+      <div class="progress-track"><div class="progress-fill" id="barIG3" style="width:0%"></div></div>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="filter-bar d-flex flex-wrap gap-2 align-items-center mb-3">
-    <select class="form-select form-select-sm" id="fIG" style="width:auto" onchange="applyFilters()">
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <select class="filter-select" id="fIG" onchange="applyFilters()">
       <option value="all">All IG Levels</option>
       <option value="ig1">IG1 only</option>
       <option value="ig2">IG1 + IG2</option>
       <option value="ig3">All (IG1+2+3)</option>
     </select>
-    <select class="form-select form-select-sm" id="fStatus" style="width:auto" onchange="applyFilters()">
+    <select class="filter-select" id="fStatus" onchange="applyFilters()">
       <option value="all">All Statuses</option>
       <option value="not_assessed">Not Assessed</option>
       <option value="not_implemented">Not Implemented</option>
@@ -158,7 +531,7 @@
       <option value="implemented">Fully Implemented</option>
       <option value="not_applicable">Not Applicable</option>
     </select>
-    <select class="form-select form-select-sm" id="fFn" style="width:auto" onchange="applyFilters()">
+    <select class="filter-select" id="fFn" onchange="applyFilters()">
       <option value="all">All Functions</option>
       <option value="Govern">Govern</option>
       <option value="Identify">Identify</option>
@@ -167,13 +540,13 @@
       <option value="Respond">Respond</option>
       <option value="Recover">Recover</option>
     </select>
-    <input type="search" class="form-control form-control-sm" id="fSearch"
-           placeholder="Search..." style="max-width:200px" oninput="applyFilters()">
-    <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="setAllOpen(true)">Expand All</button>
-    <button class="btn btn-sm btn-outline-secondary" onclick="setAllOpen(false)">Collapse All</button>
+    <input type="search" class="filter-search" id="fSearch" placeholder="Search safeguards…" oninput="applyFilters()">
+    <div class="filter-spacer"></div>
+    <button class="btn-filter" onclick="setAllOpen(true)">Expand All</button>
+    <button class="btn-filter" onclick="setAllOpen(false)">Collapse All</button>
   </div>
 
-  <!-- Controls -->
+  <!-- CONTROLS -->
   {% for ctrl in controls %}
   <div class="ctrl-card" id="ctrl-{{ ctrl.id }}">
     <button class="ctrl-header" onclick="toggleCtrl({{ ctrl.id }})">
@@ -206,8 +579,8 @@
           <div class="notes-panel" id="notes-{{ sg.id }}">
             <ul class="notes-list" id="noteslist-{{ sg.id }}"></ul>
             <div class="note-add-form">
-              <textarea id="noteinput-{{ sg.id }}" placeholder="Add a note..."></textarea>
-              <button class="btn btn-sm btn-outline-primary" onclick="submitNote('{{ sg.id }}')">Add Note</button>
+              <textarea id="noteinput-{{ sg.id }}" placeholder="Add a note…"></textarea>
+              <button class="btn-add-note" onclick="submitNote('{{ sg.id }}')">Add Note</button>
             </div>
           </div>
           <div class="att-panel" id="att-{{ sg.id }}">
@@ -233,9 +606,9 @@
           </select>
           <div class="flash-saved" id="flash-{{ sg.id }}">&#10003; Saved</div>
         </div>
-        <div>
-          <button class="btn btn-outline-secondary notes-btn" id="notesbtn-{{ sg.id }}" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
-          <button class="btn btn-outline-secondary notes-btn mt-1" id="attbtn-{{ sg.id }}" onclick="toggleAtt('{{ sg.id }}')">Files</button>
+        <div class="action-btns">
+          <button class="btn-action" id="notesbtn-{{ sg.id }}" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
+          <button class="btn-action" id="attbtn-{{ sg.id }}" onclick="toggleAtt('{{ sg.id }}')">Files</button>
         </div>
       </div>
       {% endfor %}
@@ -244,9 +617,27 @@
   </div>
   {% endfor %}
 
-</div>
+</div><!-- /page-wrap -->
 
 <script>
+// --- Theme ---
+(function() {
+  const saved = localStorage.getItem('csat-theme') || 'light';
+  document.documentElement.dataset.theme = saved;
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  });
+})();
+
+function toggleTheme() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('csat-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
 // --- State ---
 let assessments = {};
 
@@ -255,13 +646,9 @@ async function init() {
   const res = await fetch('/api/assessments');
   assessments = await res.json();
 
-  // Apply saved assessment data to DOM
   for (const [id, a] of Object.entries(assessments)) {
     const sel = document.getElementById('status-' + id);
-    if (sel) {
-      sel.value = a.status;
-      setSelectStyle(sel, a.status);
-    }
+    if (sel) { sel.value = a.status; setSelectStyle(sel, a.status); }
     const upd = document.getElementById('updated-' + id);
     if (upd && a.updated_at) upd.textContent = 'Updated ' + a.updated_at;
     renderNotes(id, a.notes || []);
@@ -273,13 +660,9 @@ async function init() {
 }
 
 // --- Toggle helpers ---
-function toggleDesc(id) {
-  document.getElementById('desc-' + id).classList.toggle('open');
-}
-
-function toggleNotes(id) {
-  document.getElementById('notes-' + id).classList.toggle('open');
-}
+function toggleDesc(id)  { document.getElementById('desc-'  + id).classList.toggle('open'); }
+function toggleNotes(id) { document.getElementById('notes-' + id).classList.toggle('open'); }
+function toggleAtt(id)   { document.getElementById('att-'   + id).classList.toggle('open'); }
 
 function toggleCtrl(id) {
   const body = document.getElementById('ctrlbody-' + id);
@@ -297,9 +680,7 @@ function setAllOpen(open) {
 }
 
 // --- Status / Save ---
-function setSelectStyle(sel, status) {
-  sel.className = 'status-select s-' + status;
-}
+function setSelectStyle(sel, status) { sel.className = 'status-select s-' + status; }
 
 function onStatusChange(id, sel) {
   setSelectStyle(sel, sel.value);
@@ -332,15 +713,15 @@ function getStatus(id) {
 }
 
 function scoreVal(status) {
-  if (status === 'implemented') return 1;
-  if (status === 'partial') return 0.5;
+  if (status === 'implemented')   return 1;
+  if (status === 'partial')       return 0.5;
   if (status === 'not_applicable') return null;
   return 0;
 }
 
 function updateStats() {
   let assessed = 0;
-  const ig = { ig1: {t:0, s:0}, ig2: {t:0, s:0}, ig3: {t:0, s:0} };
+  const ig = { ig1:{t:0,s:0}, ig2:{t:0,s:0}, ig3:{t:0,s:0} };
 
   document.querySelectorAll('.sg-row').forEach(row => {
     const id = row.id.replace('sgrow-', '');
@@ -365,18 +746,16 @@ function updateStats() {
 function updateControlScores() {
   document.querySelectorAll('.ctrl-card').forEach(card => {
     const id = card.id.replace('ctrl-', '');
-    const rows = card.querySelectorAll('.sg-row');
     let total = 0, scored = 0;
-    rows.forEach(row => {
-      const sgId = row.id.replace('sgrow-', '');
-      const v = scoreVal(getStatus(sgId));
+    card.querySelectorAll('.sg-row').forEach(row => {
+      const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
       if (v !== null) { total++; scored += v; }
     });
     const pct = total === 0 ? 0 : Math.round((scored / total) * 100);
-    const scoreEl = document.getElementById('ctrlscore-' + id);
-    if (scoreEl) {
-      scoreEl.textContent = pct + '%';
-      scoreEl.style.color = pct >= 80 ? '#28a745' : pct >= 50 ? '#fd7e14' : pct > 0 ? '#dc3545' : '#6c757d';
+    const el = document.getElementById('ctrlscore-' + id);
+    if (el) {
+      el.textContent = pct + '%';
+      el.style.color = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : pct > 0 ? '#ef4444' : '#94a3b8';
     }
   });
 }
@@ -387,9 +766,7 @@ function applyFilters() {
   const fStatus = document.getElementById('fStatus').value;
   const fFn     = document.getElementById('fFn').value;
   const fSearch = document.getElementById('fSearch').value.toLowerCase().trim();
-
-  // IG level map: which data attributes must be true
-  const igKeys = { all: [], ig1: ['ig1'], ig2: ['ig1','ig2'], ig3: ['ig1','ig2','ig3'] };
+  const igKeys  = { all:[], ig1:['ig1'], ig2:['ig1','ig2'], ig3:['ig1','ig2','ig3'] };
   const required = igKeys[fIG];
 
   document.querySelectorAll('.ctrl-card').forEach(card => {
@@ -399,24 +776,14 @@ function applyFilters() {
     card.querySelectorAll('.sg-row').forEach(row => {
       const id = row.id.replace('sgrow-', '');
       let show = true;
-
-      // IG filter: show row if any of the required IG keys is true
       if (required.length > 0 && !required.some(k => row.dataset[k] === 'true')) show = false;
-
-      // Function filter
       if (show && fFn !== 'all' && row.dataset.fn !== fFn) show = false;
-
-      // Status filter
       if (show && fStatus !== 'all' && getStatus(id) !== fStatus) show = false;
-
-      // Search filter
       if (show && fSearch && !row.dataset.search.includes(fSearch)) show = false;
-
       row.classList.toggle('hidden', !show);
       if (show) anyVisible = true;
     });
 
-    // Show/hide no-match message and control card
     const noMatch = document.getElementById('nomatch-' + ctrlId);
     if (noMatch) noMatch.style.display = anyVisible ? 'none' : 'block';
     card.style.display = anyVisible ? '' : 'none';
@@ -438,19 +805,19 @@ function makeNoteEl(sgId, note) {
   li.innerHTML =
     '<span class="note-body">' + escHtml(note.body) + '</span>' +
     '<span class="note-ts">' + note.created_at + '</span>' +
-    '<button class="note-del" title="Delete note" ' +
-    'onclick="deleteNote(' + note.id + ', \'' + sgId + '\')">&times;</button>';
+    '<button class="note-del" title="Delete note" onclick="deleteNote(' + note.id + ',\'' + sgId + '\')">&times;</button>';
   return li;
 }
 
 function escHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function updateNotesBtn(sgId, count) {
   const btn = document.getElementById('notesbtn-' + sgId);
   if (!btn) return;
   btn.textContent = count > 0 ? 'Notes (' + count + ')' : 'Notes';
+  btn.classList.toggle('has-items', count > 0);
 }
 
 async function submitNote(sgId) {
@@ -464,10 +831,9 @@ async function submitNote(sgId) {
   });
   if (!res.ok) return;
   const note = await res.json();
-  const list = document.getElementById('noteslist-' + sgId);
-  list.appendChild(makeNoteEl(sgId, note));
+  document.getElementById('noteslist-' + sgId).appendChild(makeNoteEl(sgId, note));
   ta.value = '';
-  if (!assessments[sgId]) assessments[sgId] = { notes: [] };
+  if (!assessments[sgId]) assessments[sgId] = { notes: [], attachments: [] };
   assessments[sgId].notes.push(note);
   updateNotesBtn(sgId, assessments[sgId].notes.length);
 }
@@ -484,11 +850,7 @@ async function deleteNote(noteId, sgId) {
 }
 
 // --- Attachments ---
-function toggleAtt(id) {
-  document.getElementById('att-' + id).classList.toggle('open');
-}
-
-function dzOver(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+function dzOver(e)  { e.preventDefault(); e.currentTarget.classList.add('over'); }
 function dzLeave(e) { e.currentTarget.classList.remove('over'); }
 function dzDrop(e, sgId) {
   e.preventDefault();
@@ -503,14 +865,8 @@ function handleFiles(input, sgId) {
 async function uploadFile(sgId, file) {
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch('/api/assessments/' + sgId + '/attachments', {
-    method: 'POST', body: fd
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
-    alert(err.error);
-    return;
-  }
+  const res = await fetch('/api/assessments/' + sgId + '/attachments', { method: 'POST', body: fd });
+  if (!res.ok) { const err = await res.json().catch(() => ({error:'Upload failed'})); alert(err.error); return; }
   const att = await res.json();
   document.getElementById('attlist-' + sgId).appendChild(makeAttEl(sgId, att));
   if (!assessments[sgId]) assessments[sgId] = { notes: [], attachments: [] };
@@ -545,7 +901,9 @@ function fmtSize(b) {
 
 function updateAttBtn(sgId, count) {
   const btn = document.getElementById('attbtn-' + sgId);
-  if (btn) btn.textContent = count > 0 ? 'Files (' + count + ')' : 'Files';
+  if (!btn) return;
+  btn.textContent = count > 0 ? 'Files (' + count + ')' : 'Files';
+  btn.classList.toggle('has-items', count > 0);
 }
 
 async function deleteAtt(attId, sgId) {
