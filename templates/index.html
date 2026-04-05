@@ -55,12 +55,23 @@
     .ig3 { background:#e2d9f3; color:#4a1d7e; }
     .sg-desc { font-size: 0.78rem; color: #555; margin-top: 4px; line-height: 1.45; display: none; }
     .sg-desc.open { display: block; }
-    .notes-area { display: none; width: 100%; margin-top: 4px; font-size: 0.78rem;
-                  border: 1px solid #ddd; border-radius: 4px; padding: 4px 6px;
-                  resize: vertical; min-height: 48px; }
-    .notes-area.open { display: block; }
     .updated-lbl { font-size: 0.65rem; color: #aaa; margin-top: 2px; }
     .status-select { font-size: 0.78rem; padding: 3px 6px; border-radius: 4px; width: 100%; cursor: pointer; border: 1px solid #ccc; }
+    /* Notes panel */
+    .notes-panel { display: none; margin-top: 6px; }
+    .notes-panel.open { display: block; }
+    .notes-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
+    .notes-list li { font-size: 0.78rem; background: #f8f9fa; border-radius: 4px;
+                     padding: 5px 8px 5px 10px; margin-bottom: 4px; position: relative;
+                     border-left: 3px solid #1a2b4a; }
+    .note-body { display: block; white-space: pre-wrap; word-break: break-word; }
+    .note-ts   { font-size: 0.65rem; color: #aaa; display: block; margin-top: 2px; }
+    .note-del  { position: absolute; top: 4px; right: 6px; background: none; border: none;
+                 color: #ccc; font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0; }
+    .note-del:hover { color: #dc3545; }
+    .note-add-form textarea { width: 100%; font-size: 0.78rem; border: 1px solid #ddd;
+                              border-radius: 4px; padding: 4px 6px; resize: vertical; min-height: 44px; }
+    .note-add-form .btn { margin-top: 4px; font-size: 0.72rem; padding: 2px 10px; }
     .s-not_assessed    { background:#f8f9fa; color:#6c757d; }
     .s-not_implemented { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
     .s-partial         { background:#fff3cd; color:#856404; border-color:#ffeeba; }
@@ -174,7 +185,13 @@
             {% if sg.ig3 %}<span class="ig-badge ig3">IG3</span>{% endif %}
           </div>
           <div class="sg-desc" id="desc-{{ sg.id }}">{{ sg.description }}</div>
-          <textarea class="notes-area" id="notes-{{ sg.id }}" placeholder="Assessment notes..."></textarea>
+          <div class="notes-panel" id="notes-{{ sg.id }}">
+            <ul class="notes-list" id="noteslist-{{ sg.id }}"></ul>
+            <div class="note-add-form">
+              <textarea id="noteinput-{{ sg.id }}" placeholder="Add a note..."></textarea>
+              <button class="btn btn-sm btn-outline-primary" onclick="submitNote('{{ sg.id }}')">Add Note</button>
+            </div>
+          </div>
           <div class="updated-lbl" id="updated-{{ sg.id }}"></div>
         </div>
         <div>
@@ -189,7 +206,7 @@
           <div class="flash-saved" id="flash-{{ sg.id }}">&#10003; Saved</div>
         </div>
         <div>
-          <button class="btn btn-outline-secondary notes-btn" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
+          <button class="btn btn-outline-secondary notes-btn" id="notesbtn-{{ sg.id }}" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
         </div>
       </div>
       {% endfor %}
@@ -216,18 +233,10 @@ async function init() {
       sel.value = a.status;
       setSelectStyle(sel, a.status);
     }
-    const notes = document.getElementById('notes-' + id);
-    if (notes && a.notes) notes.value = a.notes;
     const upd = document.getElementById('updated-' + id);
     if (upd && a.updated_at) upd.textContent = 'Updated ' + a.updated_at;
+    renderNotes(id, a.notes || []);
   }
-
-  // Attach notes save handlers
-  document.querySelectorAll('.notes-area').forEach(ta => {
-    const id = ta.id.replace('notes-', '');
-    ta.addEventListener('blur', () => saveAssessment(id));
-    ta.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') saveAssessment(id); });
-  });
 
   updateStats();
   updateControlScores();
@@ -269,14 +278,15 @@ function onStatusChange(id, sel) {
 
 async function saveAssessment(id) {
   const status = document.getElementById('status-' + id).value;
-  const notes  = document.getElementById('notes-' + id).value;
   const res = await fetch('/api/assessments/' + id, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, notes })
+    body: JSON.stringify({ status })
   });
   const data = await res.json();
-  assessments[id] = { status, notes, updated_at: data.updated_at };
+  if (!assessments[id]) assessments[id] = { notes: [] };
+  assessments[id].status = status;
+  assessments[id].updated_at = data.updated_at;
   const upd = document.getElementById('updated-' + id);
   if (upd) upd.textContent = 'Updated ' + data.updated_at;
   const flash = document.getElementById('flash-' + id);
@@ -381,6 +391,66 @@ function applyFilters() {
     if (noMatch) noMatch.style.display = anyVisible ? 'none' : 'block';
     card.style.display = anyVisible ? '' : 'none';
   });
+}
+
+// --- Notes ---
+function renderNotes(sgId, notes) {
+  const list = document.getElementById('noteslist-' + sgId);
+  if (!list) return;
+  list.innerHTML = '';
+  for (const n of notes) list.appendChild(makeNoteEl(sgId, n));
+  updateNotesBtn(sgId, notes.length);
+}
+
+function makeNoteEl(sgId, note) {
+  const li = document.createElement('li');
+  li.id = 'note-' + note.id;
+  li.innerHTML =
+    '<span class="note-body">' + escHtml(note.body) + '</span>' +
+    '<span class="note-ts">' + note.created_at + '</span>' +
+    '<button class="note-del" title="Delete note" ' +
+    'onclick="deleteNote(' + note.id + ', \'' + sgId + '\')">&times;</button>';
+  return li;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateNotesBtn(sgId, count) {
+  const btn = document.getElementById('notesbtn-' + sgId);
+  if (!btn) return;
+  btn.textContent = count > 0 ? 'Notes (' + count + ')' : 'Notes';
+}
+
+async function submitNote(sgId) {
+  const ta = document.getElementById('noteinput-' + sgId);
+  const body = ta.value.trim();
+  if (!body) return;
+  const res = await fetch('/api/assessments/' + sgId + '/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) return;
+  const note = await res.json();
+  const list = document.getElementById('noteslist-' + sgId);
+  list.appendChild(makeNoteEl(sgId, note));
+  ta.value = '';
+  if (!assessments[sgId]) assessments[sgId] = { notes: [] };
+  assessments[sgId].notes.push(note);
+  updateNotesBtn(sgId, assessments[sgId].notes.length);
+}
+
+async function deleteNote(noteId, sgId) {
+  const res = await fetch('/api/notes/' + noteId, { method: 'DELETE' });
+  if (!res.ok) return;
+  const el = document.getElementById('note-' + noteId);
+  if (el) el.remove();
+  if (assessments[sgId]) {
+    assessments[sgId].notes = assessments[sgId].notes.filter(n => n.id !== noteId);
+    updateNotesBtn(sgId, assessments[sgId].notes.length);
+  }
 }
 
 init();
