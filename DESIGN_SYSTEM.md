@@ -1,5 +1,5 @@
-# CSAT Design System
-**CIS Controls v8.1 Assessment Tool — UI Reference**
+# LibreVigilant Design System
+**LibreVigilant — CIS Controls v8.1 Assessment Tool — UI Reference**
 
 > **IMPORTANT**: All future UI work on this application MUST reference this document. Do not hard-code colours, spacing, or typography values outside of the token definitions in `index.html`'s `:root` and `[data-theme="dark"]` blocks. Always use the CSS custom properties defined here.
 
@@ -168,18 +168,18 @@ Dark mode shadows are stronger: `rgba(0,0,0,0.3)` and `rgba(0,0,0,0.2)`.
 
 ## 7. Dark Mode
 
-**Implementation**: `data-theme="light|dark"` on `<html>`. Toggle via button in navbar. Preference persisted in `localStorage` key `"csat-theme"`.
+**Implementation**: `data-theme="light|dark"` on `<html>`. Toggle via button in navbar. Preference persisted in `localStorage` key `"librevig-theme"`.
 
 **JS toggle pattern**:
 ```js
 function toggleTheme() {
   const isDark = document.documentElement.dataset.theme === 'dark';
   document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
-  localStorage.setItem('csat-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('librevig-theme', isDark ? 'light' : 'dark');
   document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
 }
 // On load:
-const saved = localStorage.getItem('csat-theme') || 'light';
+const saved = localStorage.getItem('librevig-theme') || 'light';
 document.documentElement.dataset.theme = saved;
 ```
 

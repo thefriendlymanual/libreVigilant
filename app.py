@@ -9,7 +9,7 @@ from flask import Flask, Response, abort, jsonify, render_template, request, sen
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "csat.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "librevig.db")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "cis_data.json")
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 

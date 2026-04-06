@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CIS Controls v8.1 Assessment</title>
+  <title>LibreVigilant</title>
   <style>
     /* =============================================
        DESIGN SYSTEM TOKENS — see /DESIGN_SYSTEM.md
@@ -479,8 +479,8 @@
 <!-- NAVBAR -->
 <nav class="app-nav">
   <div class="app-nav-brand">
-    CIS Controls v8.1
-    <small>Compliance Assessment</small>
+    LibreVigilant
+    <small>CIS Controls v8.1 Assessment</small>
   </div>
   <a href="/api/export" class="btn-nav">
     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-4-4h2.5V3h3v5H12L8 12zm-6 2h12v-1H2v1z"/></svg>
@@ -622,7 +622,7 @@
 <script>
 // --- Theme ---
 (function() {
-  const saved = localStorage.getItem('csat-theme') || 'light';
+  const saved = localStorage.getItem('librevig-theme') || 'light';
   document.documentElement.dataset.theme = saved;
   document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('themeBtn');
@@ -634,7 +634,7 @@ function toggleTheme() {
   const isDark = document.documentElement.dataset.theme === 'dark';
   const next = isDark ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
-  localStorage.setItem('csat-theme', next);
+  localStorage.setItem('librevig-theme', next);
   document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
 }
 

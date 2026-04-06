@@ -1,4 +1,4 @@
-# CIS Controls v8.1 Compliance Assessment Tool (CSAT)
+# LibreVigilant — CIS Controls v8.1 Compliance Assessment Tool
 
 ## What It Is
 A self-hosted web app for tracking compliance against CIS Controls Version 8.1.2 (March 2025).
@@ -13,7 +13,7 @@ across 18 controls, track notes per safeguard, and view compliance scores by IG 
 /home/jimbo/csat/
   app.py              Flask app — routes, DB init, data loading
   cis_data.json       Static CIS Controls data (18 controls, 153 safeguards with descriptions)
-  csat.db             SQLite DB — stores assessment status + notes per safeguard
+  librevig.db             SQLite DB — stores assessment status + notes per safeguard
   requirements.txt    Just: flask>=3.0
   templates/
     index.html        Single-page UI (Jinja2 server-side rendering + vanilla JS)
@@ -37,7 +37,7 @@ python3 /tmp/get-pip.py --user --break-system-packages
 - 18 controls, each with a list of safeguards
 - Each safeguard: `id`, `asset_class`, `function`, `title`, `description`, `ig1`, `ig2`, `ig3` (booleans)
 
-**csat.db** — `assessments` table:
+**librevig.db** — `assessments` table:
 - `safeguard_id` (PK, e.g. "1.1")
 - `status`: `not_assessed` | `not_implemented` | `partial` | `implemented` | `not_applicable`
 - `notes`: free text
