@@ -283,7 +283,10 @@ def export_csv():
             ig2 = "Yes" if sg["ig2"] else "No"
             ig3 = "Yes" if sg["ig3"] else "No"
             title = sg["title"].replace('"', '""')
-            lines.append(f'{control["id"]},{sg["id"]},"{title}",{sg["asset_class"]},{sg["function"]},{ig1},{ig2},{ig3},{status},"{notes}","{att_str}",{updated}')
+            ctrl_code = f'C{control["id"]:02d}'
+            parts = sg["id"].split(".")
+            sg_code = f'C{int(parts[0]):02d}-{int(parts[1]):02d}'
+            lines.append(f'{ctrl_code},{sg_code},"{title}",{sg["asset_class"]},{sg["function"]},{ig1},{ig2},{ig3},{status},"{notes}","{att_str}",{updated}')
 
     csv_content = "\n".join(lines)
     return Response(

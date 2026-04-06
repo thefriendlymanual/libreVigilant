@@ -151,13 +151,21 @@
     /* =============================================
        STAT CARDS
     ============================================= */
-    .stats-grid {
+    .dashboard-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.65rem;
+      grid-template-columns: 200px 1fr;
+      gap: 0.75rem;
       margin-bottom: 0.8rem;
+      align-items: start;
     }
-    @media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) {
+      .dashboard-row { grid-template-columns: 1fr; }
+    }
+    .stats-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
 
     .stat-card {
       background: var(--bg-surface);
@@ -189,6 +197,42 @@
     .c-ig1 .progress-fill { background: var(--color-success); }
     .c-ig2 .progress-fill { background: var(--color-info); }
     .c-ig3 .progress-fill { background: var(--color-purple); }
+
+    /* =============================================
+       RADAR CHART
+    ============================================= */
+    .radar-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.75rem;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 0;
+    }
+    .radar-wrap {
+      width: 100%; max-width: 460px;
+    }
+    .radar-wrap svg { width: 100%; height: auto; }
+    .radar-grid { fill: none; stroke: var(--border); stroke-width: 0.8; }
+    .radar-axis { stroke: var(--border); stroke-width: 0.5; }
+    .radar-data {
+      fill: var(--brand-accent); fill-opacity: 0.18;
+      stroke: var(--brand-accent); stroke-width: 2; stroke-linejoin: round;
+    }
+    .radar-dot { fill: var(--brand-accent); }
+    .radar-label {
+      font-size: 10px; fill: var(--text-secondary); cursor: pointer;
+      transition: fill 0.15s;
+    }
+    .radar-label:hover { fill: var(--text-link); }
+    .radar-label.active { fill: var(--brand-accent); font-weight: 700; }
+    .radar-pct {
+      font-size: 9px; fill: var(--text-muted); pointer-events: none;
+    }
+    .radar-ring-label {
+      font-size: 8px; fill: var(--text-muted); pointer-events: none;
+    }
 
     /* =============================================
        FILTER BAR
@@ -491,27 +535,34 @@
 
 <div class="page-wrap">
 
-  <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-card c-total">
-      <div class="stat-label">Total Safeguards</div>
-      <div class="stat-val">153</div>
-      <div class="stat-sub" id="statAssessed">0 assessed</div>
+  <!-- DASHBOARD: stats left, radar right -->
+  <div class="dashboard-row">
+    <div class="stats-grid">
+      <div class="stat-card c-total">
+        <div class="stat-label">Total Safeguards</div>
+        <div class="stat-val">153</div>
+        <div class="stat-sub" id="statAssessed">0 assessed</div>
+      </div>
+      <div class="stat-card c-ig1">
+        <div class="stat-label">IG1 Score</div>
+        <div class="stat-val" id="statIG1">0%</div>
+        <div class="progress-track"><div class="progress-fill" id="barIG1" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card c-ig2">
+        <div class="stat-label">IG2 Score</div>
+        <div class="stat-val" id="statIG2">0%</div>
+        <div class="progress-track"><div class="progress-fill" id="barIG2" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card c-ig3">
+        <div class="stat-label">IG3 Score</div>
+        <div class="stat-val" id="statIG3">0%</div>
+        <div class="progress-track"><div class="progress-fill" id="barIG3" style="width:0%"></div></div>
+      </div>
     </div>
-    <div class="stat-card c-ig1">
-      <div class="stat-label">IG1 Score</div>
-      <div class="stat-val" id="statIG1">0%</div>
-      <div class="progress-track"><div class="progress-fill" id="barIG1" style="width:0%"></div></div>
-    </div>
-    <div class="stat-card c-ig2">
-      <div class="stat-label">IG2 Score</div>
-      <div class="stat-val" id="statIG2">0%</div>
-      <div class="progress-track"><div class="progress-fill" id="barIG2" style="width:0%"></div></div>
-    </div>
-    <div class="stat-card c-ig3">
-      <div class="stat-label">IG3 Score</div>
-      <div class="stat-val" id="statIG3">0%</div>
-      <div class="progress-track"><div class="progress-fill" id="barIG3" style="width:0%"></div></div>
+    <div class="radar-section">
+      <div class="radar-wrap">
+        <svg id="radarSvg" viewBox="0 0 500 500"></svg>
+      </div>
     </div>
   </div>
 
@@ -540,6 +591,12 @@
       <option value="Respond">Respond</option>
       <option value="Recover">Recover</option>
     </select>
+    <select class="filter-select" id="fCtrl" onchange="applyFilters()">
+      <option value="all">All Controls</option>
+      {% for ctrl in controls %}
+      <option value="{{ ctrl.id }}">C{{ '%02d' % ctrl.id }} — {{ ctrl.title }}</option>
+      {% endfor %}
+    </select>
     <input type="search" class="filter-search" id="fSearch" placeholder="Search safeguards…" oninput="applyFilters()">
     <div class="filter-spacer"></div>
     <button class="btn-filter" onclick="setAllOpen(true)">Expand All</button>
@@ -550,7 +607,7 @@
   {% for ctrl in controls %}
   <div class="ctrl-card" id="ctrl-{{ ctrl.id }}">
     <button class="ctrl-header" onclick="toggleCtrl({{ ctrl.id }})">
-      <span class="ctrl-num">{{ ctrl.id }}</span>
+      <span class="ctrl-num">C{{ '%02d' % ctrl.id }}</span>
       <span class="ctrl-title">{{ ctrl.title }}</span>
       <span class="ctrl-meta" id="ctrlmeta-{{ ctrl.id }}">{{ ctrl.safeguards|length }} safeguards</span>
       <span class="ctrl-score" id="ctrlscore-{{ ctrl.id }}">—</span>
@@ -565,7 +622,8 @@
            data-ig3="{{ 'true' if sg.ig3 else 'false' }}"
            data-fn="{{ sg.function }}"
            data-search="{{ sg.id|lower }} {{ sg.title|lower }} {{ sg.description|lower }}">
-        <div class="sg-id">{{ sg.id }}</div>
+        {% set parts = sg.id.split('.') %}
+        <div class="sg-id">C{{ '%02d' % parts[0]|int }}-{{ '%02d' % parts[1]|int }}</div>
         <div>
           <div class="sg-title-text" onclick="toggleDesc('{{ sg.id }}')">{{ sg.title }}</div>
           <div class="sg-badges">
@@ -657,6 +715,7 @@ async function init() {
 
   updateStats();
   updateControlScores();
+  renderRadar();
 }
 
 // --- Toggle helpers ---
@@ -704,6 +763,7 @@ async function saveAssessment(id) {
   if (flash) { flash.classList.add('on'); setTimeout(() => flash.classList.remove('on'), 1500); }
   updateStats();
   updateControlScores();
+  renderRadar();
 }
 
 // --- Stats ---
@@ -720,10 +780,13 @@ function scoreVal(status) {
 }
 
 function updateStats() {
-  let assessed = 0;
+  const fCtrl = document.getElementById('fCtrl').value;
+  const scope = fCtrl !== 'all' ? '#ctrl-' + fCtrl + ' .sg-row' : '.sg-row';
+  let assessed = 0, total = 0;
   const ig = { ig1:{t:0,s:0}, ig2:{t:0,s:0}, ig3:{t:0,s:0} };
 
-  document.querySelectorAll('.sg-row').forEach(row => {
+  document.querySelectorAll(scope).forEach(row => {
+    total++;
     const id = row.id.replace('sgrow-', '');
     const status = getStatus(id);
     if (status !== 'not_assessed') assessed++;
@@ -735,6 +798,7 @@ function updateStats() {
     }
   });
 
+  document.querySelector('.stat-card.c-total .stat-val').textContent = total;
   document.getElementById('statAssessed').textContent = assessed + ' assessed';
   for (const k of ['ig1','ig2','ig3']) {
     const pct = ig[k].t === 0 ? 0 : Math.round((ig[k].s / ig[k].t) * 100);
@@ -760,17 +824,194 @@ function updateControlScores() {
   });
 }
 
+// --- Radar Chart ---
+const RADAR_LABELS = {
+  1:'C01 Assets', 2:'C02 Software', 3:'C03 Data', 4:'C04 Config',
+  5:'C05 Accounts', 6:'C06 Access', 7:'C07 Vuln Mgmt', 8:'C08 Audit Logs',
+  9:'C09 Email/Web', 10:'C10 Malware', 11:'C11 Recovery', 12:'C12 Network',
+  13:'C13 Net Monitor', 14:'C14 Training', 15:'C15 Suppliers', 16:'C16 AppSec',
+  17:'C17 Incident Resp', 18:'C18 Pen Test'
+};
+const RADAR_FULL = {};
+
+function getControlRadarScore(ctrlId, igFilter) {
+  const igKeys = { all:[], ig1:['ig1'], ig2:['ig1','ig2'], ig3:['ig1','ig2','ig3'] };
+  const required = igKeys[igFilter];
+  let total = 0, scored = 0;
+  const card = document.getElementById('ctrl-' + ctrlId);
+  if (!card) return 0;
+  card.querySelectorAll('.sg-row').forEach(row => {
+    if (required.length > 0 && !required.some(k => row.dataset[k] === 'true')) return;
+    const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
+    if (v !== null) { total++; scored += v; }
+  });
+  return total === 0 ? 0 : scored / total;
+}
+
+function renderRadar() {
+  const svg = document.getElementById('radarSvg');
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const cx = 250, cy = 250, R = 180, N = 18;
+  const step = (2 * Math.PI) / N;
+  const offset = -Math.PI / 2; // start from top
+
+  // Collect full control names on first render
+  if (!RADAR_FULL[1]) {
+    document.querySelectorAll('#fCtrl option').forEach(opt => {
+      if (opt.value !== 'all') {
+        const id = parseInt(opt.value);
+        RADAR_FULL[id] = opt.textContent;
+      }
+    });
+  }
+
+  // Helper: polar to cartesian
+  function px(angle, r) { return cx + r * Math.cos(angle); }
+  function py(angle, r) { return cy + r * Math.sin(angle); }
+
+  // Helper: create polygon points string
+  function ring(r) {
+    let pts = '';
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      pts += px(a, r) + ',' + py(a, r) + ' ';
+    }
+    return pts.trim();
+  }
+
+  // Grid rings at 25%, 50%, 75%, 100%
+  [0.25, 0.5, 0.75, 1].forEach(frac => {
+    const poly = document.createElementNS(ns, 'polygon');
+    poly.setAttribute('points', ring(R * frac));
+    poly.setAttribute('class', 'radar-grid');
+    svg.appendChild(poly);
+  });
+
+  // Ring labels (25%, 50%, 75%)
+  [0.25, 0.5, 0.75].forEach(frac => {
+    const lbl = document.createElementNS(ns, 'text');
+    lbl.setAttribute('x', cx + 3);
+    lbl.setAttribute('y', cy - R * frac + 1);
+    lbl.setAttribute('class', 'radar-ring-label');
+    lbl.textContent = Math.round(frac * 100) + '%';
+    svg.appendChild(lbl);
+  });
+
+  // Axes
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', cx);
+    line.setAttribute('y1', cy);
+    line.setAttribute('x2', px(a, R));
+    line.setAttribute('y2', py(a, R));
+    line.setAttribute('class', 'radar-axis');
+    svg.appendChild(line);
+  }
+
+  // Data polygon
+  const scores = [];
+  let dataPts = '';
+  for (let i = 0; i < N; i++) {
+    const ctrlId = i + 1;
+    const score = getControlRadarScore(ctrlId, document.getElementById('fIG').value);
+    scores.push(score);
+    const a = offset + i * step;
+    const r = Math.max(R * score, 0);
+    dataPts += px(a, r) + ',' + py(a, r) + ' ';
+  }
+  const dataPoly = document.createElementNS(ns, 'polygon');
+  dataPoly.setAttribute('points', dataPts.trim());
+  dataPoly.setAttribute('class', 'radar-data');
+  svg.appendChild(dataPoly);
+
+  // Data dots
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const r = Math.max(R * scores[i], 0);
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', px(a, r));
+    dot.setAttribute('cy', py(a, r));
+    dot.setAttribute('r', 3.5);
+    dot.setAttribute('class', 'radar-dot');
+    svg.appendChild(dot);
+  }
+
+  // Labels
+  const fCtrl = document.getElementById('fCtrl').value;
+  for (let i = 0; i < N; i++) {
+    const ctrlId = i + 1;
+    const a = offset + i * step;
+    const lr = R + 24;
+    const lx = px(a, lr);
+    const ly = py(a, lr);
+
+    const g = document.createElementNS(ns, 'g');
+    g.style.cursor = 'pointer';
+    g.dataset.ctrl = String(ctrlId);
+
+    // Label text
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', lx);
+    txt.setAttribute('y', ly);
+    txt.setAttribute('class', 'radar-label' + (fCtrl === String(ctrlId) ? ' active' : ''));
+    txt.dataset.ctrl = String(ctrlId);
+
+    // Text anchor based on position
+    const deg = ((a * 180 / Math.PI) + 360) % 360;
+    if (deg > 95 && deg < 265) txt.setAttribute('text-anchor', 'end');
+    else if (deg > 85 && deg <= 95 || deg >= 265 && deg < 275) txt.setAttribute('text-anchor', 'middle');
+    else txt.setAttribute('text-anchor', 'start');
+    txt.setAttribute('dominant-baseline', deg > 20 && deg < 160 ? 'hanging' : deg > 200 && deg < 340 ? 'auto' : 'central');
+
+    txt.textContent = RADAR_LABELS[ctrlId];
+    g.appendChild(txt);
+
+    // Percentage below label
+    const pctTxt = document.createElementNS(ns, 'text');
+    pctTxt.setAttribute('x', lx);
+    pctTxt.setAttribute('y', ly + 12);
+    pctTxt.setAttribute('class', 'radar-pct');
+    pctTxt.setAttribute('text-anchor', txt.getAttribute('text-anchor'));
+    pctTxt.textContent = Math.round(scores[i] * 100) + '%';
+    g.appendChild(pctTxt);
+
+    // Tooltip
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = (RADAR_FULL[ctrlId] || RADAR_LABELS[ctrlId]) + ' — ' + Math.round(scores[i] * 100) + '%';
+    g.appendChild(title);
+
+    // Click to filter by control
+    g.addEventListener('click', () => {
+      const sel = document.getElementById('fCtrl');
+      sel.value = sel.value === String(ctrlId) ? 'all' : String(ctrlId);
+      applyFilters();
+    });
+
+    svg.appendChild(g);
+  }
+}
+
 // --- Filtering ---
 function applyFilters() {
   const fIG     = document.getElementById('fIG').value;
   const fStatus = document.getElementById('fStatus').value;
   const fFn     = document.getElementById('fFn').value;
+  const fCtrl   = document.getElementById('fCtrl').value;
   const fSearch = document.getElementById('fSearch').value.toLowerCase().trim();
   const igKeys  = { all:[], ig1:['ig1'], ig2:['ig1','ig2'], ig3:['ig1','ig2','ig3'] };
   const required = igKeys[fIG];
 
   document.querySelectorAll('.ctrl-card').forEach(card => {
     const ctrlId = card.id.replace('ctrl-', '');
+
+    // Control filter — hide entire card if not the selected control
+    if (fCtrl !== 'all' && ctrlId !== fCtrl) {
+      card.style.display = 'none';
+      return;
+    }
+
     let anyVisible = false;
 
     card.querySelectorAll('.sg-row').forEach(row => {
@@ -788,6 +1029,9 @@ function applyFilters() {
     if (noMatch) noMatch.style.display = anyVisible ? 'none' : 'block';
     card.style.display = anyVisible ? '' : 'none';
   });
+
+  updateStats();
+  renderRadar();
 }
 
 // --- Notes ---
