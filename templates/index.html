@@ -838,45 +838,103 @@ const RADAR_LABELS = {
   13:'C13 Net Monitor', 14:'C14 Training', 15:'C15 Suppliers', 16:'C16 AppSec',
   17:'C17 Incident Resp', 18:'C18 Pen Test'
 };
-const RADAR_FULL = {};
+const FUNCTIONS = ['Govern','Identify','Protect','Detect','Respond','Recover'];
 
-function getControlRadarScore(ctrlId, igFilter) {
+function igRequired(igFilter) {
   const igKeys = { all:[], ig1:['ig1'], ig2:['ig1','ig2'], ig3:['ig1','ig2','ig3'] };
-  const required = igKeys[igFilter];
+  return igKeys[igFilter];
+}
+
+function rowMatchesIG(row, required) {
+  return required.length === 0 || required.some(k => row.dataset[k] === 'true');
+}
+
+// Score all .sg-row elements matching a selector + IG filter
+function scoreRows(selector, igFilter) {
+  const required = igRequired(igFilter);
   let total = 0, scored = 0;
-  const card = document.getElementById('ctrl-' + ctrlId);
-  if (!card) return 0;
-  card.querySelectorAll('.sg-row').forEach(row => {
-    if (required.length > 0 && !required.some(k => row.dataset[k] === 'true')) return;
+  document.querySelectorAll(selector).forEach(row => {
+    if (!rowMatchesIG(row, required)) return;
     const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
     if (v !== null) { total++; scored += v; }
   });
   return total === 0 ? 0 : scored / total;
 }
 
+// Build radar data items based on active filters
+function getRadarItems() {
+  const fIG   = document.getElementById('fIG').value;
+  const fCtrl = document.getElementById('fCtrl').value;
+  const fFn   = document.getElementById('fFn').value;
+
+  // Mode 1: Control selected — show individual safeguards
+  if (fCtrl !== 'all') {
+    const card = document.getElementById('ctrl-' + fCtrl);
+    if (!card) return [];
+    const required = igRequired(fIG);
+    const items = [];
+    card.querySelectorAll('.sg-row').forEach(row => {
+      if (!rowMatchesIG(row, required)) return;
+      if (fFn !== 'all' && row.dataset.fn !== fFn) return;
+      const rawId = row.id.replace('sgrow-', '');
+      const parts = rawId.split('.');
+      const label = 'C' + parts[0].padStart(2,'0') + '-' + parts[1].padStart(2,'0');
+      const v = scoreVal(getStatus(rawId));
+      const score = v === null ? 0 : v;
+      const statusText = getStatus(rawId).replace(/_/g, ' ');
+      items.push({ label: label, score: score, tooltip: label + ' — ' + statusText });
+    });
+    return items;
+  }
+
+  // Mode 2: Function selected — show per-control scores for that function
+  if (fFn !== 'all') {
+    const required = igRequired(fIG);
+    const items = [];
+    for (let i = 1; i <= 18; i++) {
+      const card = document.getElementById('ctrl-' + i);
+      if (!card) continue;
+      let total = 0, scored = 0;
+      card.querySelectorAll('.sg-row').forEach(row => {
+        if (row.dataset.fn !== fFn) return;
+        if (!rowMatchesIG(row, required)) return;
+        const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
+        if (v !== null) { total++; scored += v; }
+      });
+      if (total === 0) continue; // skip controls with no safeguards for this function
+      const score = scored / total;
+      items.push({ label: RADAR_LABELS[i], score: score, tooltip: RADAR_LABELS[i] + ' (' + fFn + ') — ' + Math.round(score * 100) + '%' });
+    }
+    return items;
+  }
+
+  // Mode 3: Default — show score per control
+  const items = [];
+  for (let i = 1; i <= 18; i++) {
+    const score = scoreRows('#ctrl-' + i + ' .sg-row', fIG);
+    items.push({ label: RADAR_LABELS[i], score: score, tooltip: RADAR_LABELS[i] + ' — ' + Math.round(score * 100) + '%' });
+  }
+  return items;
+}
+
 function renderRadar() {
   const svg = document.getElementById('radarSvg');
   svg.innerHTML = '';
   const ns = 'http://www.w3.org/2000/svg';
-  const cx = 250, cy = 250, R = 180, N = 18;
+  const cx = 250, cy = 250, R = 180;
+
+  const items = getRadarItems();
+  if (items.length === 0) return;
+  // Pad to minimum 3 items so the polygon/grid renders properly
+  while (items.length < 3) items.push({ label: '', score: 0, tooltip: '' });
+  const N = items.length;
+
   const step = (2 * Math.PI) / N;
-  const offset = -Math.PI / 2; // start from top
+  const offset = -Math.PI / 2;
 
-  // Collect full control names on first render
-  if (!RADAR_FULL[1]) {
-    document.querySelectorAll('#fCtrl option').forEach(opt => {
-      if (opt.value !== 'all') {
-        const id = parseInt(opt.value);
-        RADAR_FULL[id] = opt.textContent;
-      }
-    });
-  }
-
-  // Helper: polar to cartesian
   function px(angle, r) { return cx + r * Math.cos(angle); }
   function py(angle, r) { return cy + r * Math.sin(angle); }
 
-  // Helper: create polygon points string
   function ring(r) {
     let pts = '';
     for (let i = 0; i < N; i++) {
@@ -886,7 +944,7 @@ function renderRadar() {
     return pts.trim();
   }
 
-  // Grid rings at 25%, 50%, 75%, 100%
+  // Grid rings
   [0.25, 0.5, 0.75, 1].forEach(frac => {
     const poly = document.createElementNS(ns, 'polygon');
     poly.setAttribute('points', ring(R * frac));
@@ -894,7 +952,7 @@ function renderRadar() {
     svg.appendChild(poly);
   });
 
-  // Ring labels (25%, 50%, 75%)
+  // Ring labels
   [0.25, 0.5, 0.75].forEach(frac => {
     const lbl = document.createElementNS(ns, 'text');
     lbl.setAttribute('x', cx + 3);
@@ -908,23 +966,17 @@ function renderRadar() {
   for (let i = 0; i < N; i++) {
     const a = offset + i * step;
     const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', cx);
-    line.setAttribute('y1', cy);
-    line.setAttribute('x2', px(a, R));
-    line.setAttribute('y2', py(a, R));
+    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+    line.setAttribute('x2', px(a, R)); line.setAttribute('y2', py(a, R));
     line.setAttribute('class', 'radar-axis');
     svg.appendChild(line);
   }
 
   // Data polygon
-  const scores = [];
   let dataPts = '';
   for (let i = 0; i < N; i++) {
-    const ctrlId = i + 1;
-    const score = getControlRadarScore(ctrlId, document.getElementById('fIG').value);
-    scores.push(score);
     const a = offset + i * step;
-    const r = Math.max(R * score, 0);
+    const r = Math.max(R * items[i].score, 0);
     dataPts += px(a, r) + ',' + py(a, r) + ' ';
   }
   const dataPoly = document.createElementNS(ns, 'polygon');
@@ -935,65 +987,48 @@ function renderRadar() {
   // Data dots
   for (let i = 0; i < N; i++) {
     const a = offset + i * step;
-    const r = Math.max(R * scores[i], 0);
+    const r = Math.max(R * items[i].score, 0);
     const dot = document.createElementNS(ns, 'circle');
-    dot.setAttribute('cx', px(a, r));
-    dot.setAttribute('cy', py(a, r));
+    dot.setAttribute('cx', px(a, r)); dot.setAttribute('cy', py(a, r));
     dot.setAttribute('r', 3.5);
     dot.setAttribute('class', 'radar-dot');
     svg.appendChild(dot);
   }
 
   // Labels
-  const fCtrl = document.getElementById('fCtrl').value;
   for (let i = 0; i < N; i++) {
-    const ctrlId = i + 1;
     const a = offset + i * step;
     const lr = R + 24;
     const lx = px(a, lr);
     const ly = py(a, lr);
 
     const g = document.createElementNS(ns, 'g');
-    g.style.cursor = 'pointer';
-    g.dataset.ctrl = String(ctrlId);
+    g.style.cursor = 'default';
 
-    // Label text
     const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', lx);
-    txt.setAttribute('y', ly);
-    txt.setAttribute('class', 'radar-label' + (fCtrl === String(ctrlId) ? ' active' : ''));
-    txt.dataset.ctrl = String(ctrlId);
+    txt.setAttribute('x', lx); txt.setAttribute('y', ly);
+    txt.setAttribute('class', 'radar-label');
 
-    // Text anchor based on position
     const deg = ((a * 180 / Math.PI) + 360) % 360;
     if (deg > 95 && deg < 265) txt.setAttribute('text-anchor', 'end');
-    else if (deg > 85 && deg <= 95 || deg >= 265 && deg < 275) txt.setAttribute('text-anchor', 'middle');
+    else if ((deg > 85 && deg <= 95) || (deg >= 265 && deg < 275)) txt.setAttribute('text-anchor', 'middle');
     else txt.setAttribute('text-anchor', 'start');
     txt.setAttribute('dominant-baseline', deg > 20 && deg < 160 ? 'hanging' : deg > 200 && deg < 340 ? 'auto' : 'central');
 
-    txt.textContent = RADAR_LABELS[ctrlId];
+    txt.textContent = items[i].label;
     g.appendChild(txt);
 
     // Percentage below label
     const pctTxt = document.createElementNS(ns, 'text');
-    pctTxt.setAttribute('x', lx);
-    pctTxt.setAttribute('y', ly + 12);
+    pctTxt.setAttribute('x', lx); pctTxt.setAttribute('y', ly + 14);
     pctTxt.setAttribute('class', 'radar-pct');
     pctTxt.setAttribute('text-anchor', txt.getAttribute('text-anchor'));
-    pctTxt.textContent = Math.round(scores[i] * 100) + '%';
+    pctTxt.textContent = Math.round(items[i].score * 100) + '%';
     g.appendChild(pctTxt);
 
-    // Tooltip
     const title = document.createElementNS(ns, 'title');
-    title.textContent = (RADAR_FULL[ctrlId] || RADAR_LABELS[ctrlId]) + ' — ' + Math.round(scores[i] * 100) + '%';
+    title.textContent = items[i].tooltip;
     g.appendChild(title);
-
-    // Click to filter by control
-    g.addEventListener('click', () => {
-      const sel = document.getElementById('fCtrl');
-      sel.value = sel.value === String(ctrlId) ? 'all' : String(ctrlId);
-      applyFilters();
-    });
 
     svg.appendChild(g);
   }
