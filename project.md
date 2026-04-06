@@ -46,18 +46,27 @@ python3 /tmp/get-pip.py --user --break-system-packages
 ## API Routes
 - `GET /` — main page (server-side rendered, all 153 rows in HTML)
 - `GET /api/assessments` — returns all saved assessments as JSON
-- `POST /api/assessments/<id>` — save status + notes for a safeguard
+- `POST /api/assessments/<id>` — save status for a safeguard
+- `POST /api/assessments/<id>/notes` — add a note
+- `DELETE /api/notes/<id>` — delete a note
+- `POST /api/assessments/<id>/attachments` — upload evidence file
+- `GET /api/attachments/<id>` — download/view attachment
+- `DELETE /api/attachments/<id>` — delete attachment
 - `GET /api/export` — download full assessment as CSV
 
 ## UI Features
-- **Dashboard**: live IG1/IG2/IG3 compliance scores (implemented=100%, partial=50%, N/A excluded)
-- **Per-control score** shown in each control header
-- **Filters**: by IG level, status, security function, free-text search
+- **Dashboard**: stat cards (total, IG1/IG2/IG3 scores) stacked vertically on the left, SVG radar chart on the right
+- **Radar chart**: context-sensitive — shows per-control overview by default, per-control scores for a selected function, or per-safeguard status for a selected control. All filters cascade.
+- **Per-control score** shown in each control header (colour-coded: green >= 80%, amber >= 50%, red > 0%)
+- **Filters**: by IG level, status, security function, control group, free-text search — all cascading
+- **C-prefix IDs**: controls display as C01–C18, safeguards as C01-01 etc. (internal data unchanged)
+- **Notes**: multi-note comment threads per safeguard with timestamps
+- **Attachments**: evidence file uploads (images, PDFs, Office docs, text/CSV), 50 MB limit
 - **Expand/Collapse All** buttons
 - **Click safeguard title** to expand full description
-- **Notes** button toggles a textarea per safeguard (saves on blur or Ctrl+Enter)
-- **Status dropdown** auto-saves on change with a brief "✓ Saved" flash
+- **Status dropdown** auto-saves on change with a brief "Saved" flash
 - **Export CSV** button downloads full assessment
+- **Light/dark mode** toggle with persistent preference (`librevig-theme` in localStorage)
 
 ## Key Implementation Decisions
 - HTML structure is rendered **server-side** by Jinja2 (not JS). JS only handles interactivity.
@@ -65,20 +74,23 @@ python3 /tmp/get-pip.py --user --break-system-packages
 - Filtering works by toggling a `hidden` CSS class on `.sg-row` elements — no re-rendering.
 - No Bootstrap accordion JS used for expand/collapse — plain `style.display` toggle instead.
 - IG scoring: IG1 score = % of ig1=true safeguards implemented; IG2 = all ig1+ig2 safeguards; IG3 = all.
+- Radar chart is custom SVG (no Chart.js) — consistent with zero-dependency philosophy.
+- CSS design token system for all colours, spacing, radii — see `DESIGN_SYSTEM.md`.
 
 ## Status / What's Working
 - All 18 controls and 153 safeguards render correctly
 - Status tracking persists to SQLite
-- Notes persist to SQLite
-- Filtering works (IG level, status, function, search)
+- Notes and attachments persist to SQLite + disk
+- Filtering works (IG level, status, function, control, search) — all cascading
+- Radar chart updates live on status changes and filter changes
 - Per-control and per-IG scores calculate correctly
-- CSV export works
+- CSV export works with C-prefix IDs
+- Light/dark mode works
 - App runs on 0.0.0.0:5000
 
 ## Potential Next Steps (not yet implemented)
 - Multi-user / named assessments (currently single shared assessment)
 - Assessment history / audit trail
 - Print/PDF report view
-- Progress bar per control in the header
 - Due dates or ownership assignment per safeguard
 - Import previous CSV assessment
