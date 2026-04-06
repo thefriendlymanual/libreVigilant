@@ -156,7 +156,7 @@
       grid-template-columns: 200px 1fr;
       gap: 0.75rem;
       margin-bottom: 0.8rem;
-      align-items: start;
+      align-items: stretch;
     }
     @media (max-width: 700px) {
       .dashboard-row { grid-template-columns: 1fr; }
@@ -165,6 +165,12 @@
       display: flex;
       flex-direction: column;
       gap: 0.55rem;
+    }
+    .stats-grid .stat-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .stat-card {
