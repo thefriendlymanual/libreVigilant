@@ -95,4 +95,10 @@ No external JavaScript or CSS frameworks. No build step. No node_modules.
 
 ## License
 
-[MIT](LICENSE)
+The **application code** is licensed under the [MIT License](LICENSE).
+
+The **CIS Controls data** (`cis_data.json`) is derived from CIS Controls v8.1.2, which is the intellectual property of the Center for Internet Security, Inc. (CIS®) and is licensed under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode).
+
+> CIS Controls® are developed by the Center for Internet Security. For the most current version, visit [https://www.cisecurity.org/controls/](https://www.cisecurity.org/controls/).
+
+**Important:** Because this repository includes CIS Controls content, **commercial use of this project is not permitted** without prior written approval from CIS. The MIT license applies only to the original application code; it does not supersede the CIS Controls license terms.
