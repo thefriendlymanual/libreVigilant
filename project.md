@@ -10,7 +10,7 @@ across 18 controls, track notes per safeguard, and view compliance scores by IG 
 
 ## Project Structure
 ```
-/home/jimbo/csat/
+~/librevigilant/
   app.py              Flask app — routes, DB init, data loading
   cis_data.json       Static CIS Controls data (18 controls, 153 safeguards with descriptions)
   librevig.db             SQLite DB — stores assessment status + notes per safeguard
