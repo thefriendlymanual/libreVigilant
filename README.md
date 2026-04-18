@@ -42,19 +42,50 @@ A self-hosted web application for tracking compliance against [CIS Controls v8.1
 
 **Requirements:** Python 3 with Flask >= 3.0
 
+**1. Clone the repository:**
+
+```bash
+git clone https://github.com/thefriendlymanual/libreVigilant.git
+cd libreVigilant
+```
+
+If you already have the repo, pull the latest changes:
+
+```bash
+git pull
+```
+
+**2. Install dependencies:**
+
 ```bash
 pip install flask
 ```
 
-**Run:**
+**3. Set a secret key:**
+
+```bash
+export SECRET_KEY="replace-with-a-long-random-string"
+```
+
+This is required to secure user sessions. The app will start without it but will warn you — do not skip this for any persistent or networked deployment.
+
+**4. Start the app:**
 
 ```bash
 python3 app.py
 ```
 
-Open [http://localhost:5000](http://localhost:5000). The app also listens on all network interfaces (0.0.0.0:5000).
+Open [http://localhost:5000](http://localhost:5000). The app also listens on all network interfaces (`0.0.0.0:5000`), so it is reachable from other devices on the same network.
 
 The SQLite database (`librevig.db`) is created automatically on first run.
+
+**5. First-run setup:**
+
+On first run, you will be redirected to `/setup` to create your organisation and admin account. Fill in your organisation name, email address, display name, and a password. After completing setup, you will be taken directly to the login page.
+
+**6. Stop the app:**
+
+Press `Ctrl+C` in the terminal where the app is running.
 
 ## Project Structure
 
