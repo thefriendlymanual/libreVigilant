@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 librevig.db
 uploads/
+.mcp.json
+.env
+*.key
+*.pem
