@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}LibreVigilant{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* =============================================
+       SENTINEL INDIGO DESIGN SYSTEM — see /DESIGN_SYSTEM.md
+    ============================================= */
+    :root, [data-theme="dark"] {
+      --surface-base:     #131314;
+      --surface-lowest:   #0E0E0F;
+      --surface-low:      #1C1B1C;
+      --surface:          #201F20;
+      --surface-high:     #2A2A2B;
+      --surface-highest:  #353436;
+      --surface-bright:   #3A393A;
+      --surface-tint:     #C0C1FF;
+      --surface-variant:  #353436;
+
+      --primary:               #C0C1FF;
+      --primary-container:     #5255E0;
+      --on-primary:            #1000A9;
+      --on-primary-container:  #E6E4FF;
+      --inverse-primary:       #494BD6;
+
+      --secondary:               #B9C8DE;
+      --secondary-container:     #39485A;
+      --on-secondary:            #233143;
+      --on-secondary-container:  #A7B6CC;
+
+      --tertiary:               #4EDEA3;
+      --tertiary-container:     #007650;
+      --on-tertiary:            #003824;
+      --on-tertiary-container:  #77FFC2;
+
+      --error:            #FFB4AB;
+      --error-container:  #93000A;
+      --on-error:         #690005;
+
+      --on-surface:          #E5E2E3;
+      --on-surface-variant:  #C7C4D6;
+      --outline:             #918F9F;
+      --outline-variant:     #464554;
+
+      --color-success:  #4EDEA3;
+      --color-warning:  #D29922;
+      --color-danger:   #FFB4AB;
+
+      --shadow-sm: 0 4px 24px -1px rgba(14,14,15,0.2);
+      --shadow-md: 0 8px 40px -2px rgba(14,14,15,0.3);
+
+      --radius-sm:   6px;
+      --radius-md:   12px;
+      --radius-lg:   16px;
+      --radius-pill: 999px;
+
+      --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-body:    'Inter',   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+      /* Legacy aliases */
+      --bg-page:        var(--surface-base);
+      --bg-surface:     var(--surface);
+      --bg-surface-2:   var(--surface-low);
+      --bg-surface-3:   var(--surface-high);
+      --border:         var(--outline-variant);
+      --border-strong:  var(--outline);
+      --text-primary:   var(--on-surface);
+      --text-secondary: var(--on-surface-variant);
+      --text-muted:     var(--outline);
+      --text-link:      var(--primary);
+      --navbar-bg:      var(--surface-base);
+    }
+
+    [data-theme="light"] {
+      --surface-base:     #FAFAFB;
+      --surface-lowest:   #F2F2F3;
+      --surface-low:      #EEEEF0;
+      --surface:          #FFFFFF;
+      --surface-high:     #EEEEFF;
+      --surface-highest:  #E6E6FF;
+      --surface-bright:   #FFFFFF;
+      --surface-tint:     #494BD6;
+      --surface-variant:  #E5E2E3;
+
+      --primary:               #494BD6;
+      --primary-container:     #E1E0FF;
+      --on-primary:            #FFFFFF;
+      --on-primary-container:  #07006C;
+      --inverse-primary:       #C0C1FF;
+
+      --secondary:               #39485A;
+      --secondary-container:     #D4E4FA;
+      --on-secondary:            #FFFFFF;
+      --on-secondary-container:  #0D1C2D;
+
+      --tertiary:               #007650;
+      --tertiary-container:     #6FFBBE;
+      --on-tertiary:            #FFFFFF;
+      --on-tertiary-container:  #002113;
+
+      --error:            #BA1A1A;
+      --error-container:  #FFDAD6;
+      --on-error:         #FFFFFF;
+
+      --on-surface:          #1A1A1C;
+      --on-surface-variant:  #44424F;
+      --outline:             #76737F;
+      --outline-variant:     #C6C3D3;
+
+      --color-success:  #007650;
+      --color-warning:  #B45309;
+      --color-danger:   #BA1A1A;
+
+      --shadow-sm: 0 4px 24px -1px rgba(10,10,11,0.08);
+      --shadow-md: 0 8px 40px -2px rgba(10,10,11,0.12);
+
+      --navbar-bg: #131314;
+    }
+
+    /* =============================================
+       BASE
+    ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+      transition: background 0.2s, color 0.2s;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+    }
+
+    /* =============================================
+       NAVBAR
+    ============================================= */
+    .app-nav {
+      background: color-mix(in srgb, var(--navbar-bg) 80%, transparent);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 0.65rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+    .app-nav-brand {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: #E5E2E3;
+      letter-spacing: -0.01em;
+      flex: 1;
+      text-decoration: none;
+    }
+    .app-nav-brand small {
+      opacity: 0.55;
+      font-weight: 400;
+      font-size: 0.78rem;
+      margin-left: 0.5rem;
+    }
+    .nav-user {
+      font-size: 0.75rem;
+      color: var(--on-surface-variant);
+      white-space: nowrap;
+    }
+    .btn-nav {
+      font-family: var(--font-body);
+      font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(200,195,211,0.2);
+      background: transparent;
+      color: #E5E2E3;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-nav:hover { background: rgba(192,193,255,0.12); border-color: rgba(192,193,255,0.5); color: #fff; }
+    .btn-theme {
+      width: 32px; height: 32px; padding: 0;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    /* =============================================
+       PAGE WRAPPER
+    ============================================= */
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 1.1rem 1rem 2rem; }
+
+    /* =============================================
+       AUTH CARD (login / setup)
+    ============================================= */
+    .auth-wrap {
+      min-height: calc(100vh - 56px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .auth-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .auth-card h1 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--on-surface);
+      margin-bottom: 0.35rem;
+    }
+    .auth-card .auth-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 1.75rem;
+    }
+
+    /* =============================================
+       FORM ELEMENTS
+    ============================================= */
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary);
+      margin-bottom: 0.4rem;
+    }
+    .field input {
+      width: 100%;
+      background: var(--surface-highest);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.75rem;
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      color: var(--on-surface);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .field input:focus {
+      border-color: var(--surface-tint);
+      background: var(--surface-high);
+    }
+    .field input::placeholder { color: var(--outline); }
+    .field .field-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    /* =============================================
+       BUTTONS
+    ============================================= */
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      background: linear-gradient(135deg, var(--primary-container), var(--inverse-primary));
+      color: var(--on-primary-container);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      margin-top: 1.5rem;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { opacity: 1; transform: translateY(0); }
+
+    /* =============================================
+       ERROR / ALERT MESSAGES
+    ============================================= */
+    .alert {
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      font-size: 0.83rem;
+      margin-bottom: 1.25rem;
+    }
+    .alert-error {
+      background: var(--error-container);
+      color: var(--error);
+    }
+    .alert ul { padding-left: 1.25rem; }
+    .alert li { margin-top: 0.2rem; }
+
+    /* =============================================
+       DIVIDER
+    ============================================= */
+    .form-divider {
+      height: 1px;
+      background: var(--outline-variant);
+      margin: 1.5rem 0;
+      opacity: 0.4;
+    }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<nav class="app-nav">
+  <a href="/" class="app-nav-brand">
+    LibreVigilant
+    <small>CIS Controls v8.1</small>
+  </a>
+  {% if current_user %}
+    <span class="nav-user">{{ current_user.display_name }}</span>
+    <a href="/logout" class="btn-nav">Sign out</a>
+  {% endif %}
+  <button class="btn-nav btn-theme" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+</nav>
+
+{% block content %}{% endblock %}
+
+<script>
+(function() {
+  const saved = localStorage.getItem('librevig-theme') || 'dark';
+  document.documentElement.dataset.theme = saved;
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  });
+})();
+
+function toggleTheme() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('librevig-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

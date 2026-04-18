@@ -115,10 +115,13 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - `GET/POST /setup` — one-time setup; only accessible when no orgs exist
 
 **Root**
-- `GET /` — redirects to org's assessment list if logged in, else to `/login`
+- `GET /` — home page with collapsible left sidebar (logged in); else redirects to `/login`
+
+**Org Management**
+- `POST /orgs` — create org (any authenticated user can create their own org)
+- `GET /orgs/<id>` — redirects to home with that org's sidebar section expanded
 
 **Assessment Management**
-- `GET /orgs/<id>/assessments` — assessment list page (all roles)
 - `POST /orgs/<id>/assessments` — create assessment (org_admin)
 - `POST /orgs/<id>/assessments/<id>/activate` — draft → active (org_admin)
 - `POST /orgs/<id>/assessments/<id>/finalise` — active → finalised, read-only (org_admin)
@@ -159,10 +162,15 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - Status dropdown auto-saves with "Saved" flash
 - Export CSV, light/dark mode with localStorage persistence
 
+**Implemented**
+- Login page — email/password auth; no self-registration
+- /setup — first-run org + admin account creation
+- /logout
+
 **Planned**
-- **Login page** — email/password auth; no self-registration
-- **Assessment selector** — per-org list with lifecycle badge, start/end dates, action buttons
-- **Assessment lifecycle UI** — draft/active/finalised badge in navbar; finalised shows read-only banner
+- **Home page with collapsible left sidebar** — primary navigation surface after login; sidebar lists all orgs the user belongs to, each expandable to show their assessments; inline actions to create a new org or a new assessment within an org; sidebar state (collapsed/expanded per org) persisted in `localStorage`; main content area shows a welcome/summary when no assessment is open
+- **Assessment view** — full CIS controls accordion adapted to the new schema; read-only banner when lifecycle is `finalised`; lifecycle badge in navbar
+- **Assessment lifecycle UI** — draft/active/finalised badge; activate and finalise actions for org_admin
 - **Audit log panel** — collapsible panel in assessment view; paginated chronological change history
 - **Risk register panel** — computed from `not_implemented` + `partial` safeguards; ranked by IG weight (IG1×3 + IG2×2 + IG3×1; halved for `partial`); exportable as CSV
 - **Cross-assessment comparison** — dual-polygon radar (current = indigo solid, previous = emerald dashed) + per-control delta table with +/- indicators
@@ -177,6 +185,8 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - Radar chart is custom SVG (no Chart.js) — consistent with zero-dependency philosophy.
 - CSS design token system for all colours, spacing, radii — see `DESIGN_SYSTEM.md`.
 - **Sessions**: Flask signed cookie sessions; werkzeug password hashing (bundled — no new deps).
+- **Home page is the shell**: `GET /` renders the full page with sidebar; assessment views load inside it. The sidebar is always present on authenticated pages.
+- **Sidebar navigation**: collapsible left sidebar lists orgs + their assessments; collapse state stored in `localStorage` keyed by org id. New org / new assessment actions live in the sidebar, not on separate pages.
 - **Assessment isolation**: notes and attachments are assessment-scoped for audit integrity.
 - **`assessment_id` in URL, not session** — bookmarkable; URL org_id must match session org_id (403 otherwise).
 - **Audit log denormalisation**: `user_display` is snapshotted at write time so the trail survives user deletion.
@@ -186,15 +196,13 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 
 ## Status / What's Working
 
-- All 18 controls and 153 safeguards render correctly
-- Status tracking persists to SQLite
-- Notes and attachments persist to SQLite + disk
-- Filtering works (IG level, status, function, control, search) — all cascading
-- Radar chart updates live on status changes and filter changes
-- Per-control and per-IG scores calculate correctly
-- CSV export works with C-prefix IDs
-- Light/dark mode works
-- App runs on 0.0.0.0:5000
+- 7-table schema with migration from old single-assessment schema
+- /setup (first-run org + admin), /login, /logout with Flask sessions
+- CSRF protection on all POST forms; werkzeug scrypt password hashing
+- SECRET_KEY warning on startup; SESSION_COOKIE_HTTPONLY + SAMESITE=Lax
+- /orgs/<id>/assessments placeholder (real home page with sidebar is next)
+- All 18 controls and 153 safeguards render correctly (legacy index.html, not yet wired to new schema)
+- Light/dark mode works; app runs on 0.0.0.0:5000
 
 ## Potential Next Steps (future, not yet planned)
 
