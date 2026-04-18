@@ -1,0 +1,1088 @@
+{% extends "base.html" %}
+
+{% block title %}{{ active_assessment.name }} — LibreVigilant{% endblock %}
+
+{% block extra_styles %}
+    /* Status tokens (dark) — legacy assessment view */
+    :root, [data-theme="dark"] {
+      --ig1-color: #A5B4FC;
+      --ig2-color: #93C5FD;
+      --ig3-color: #C4B5FD;
+      --color-info: var(--primary);
+      --color-purple: var(--ig3-color);
+      --brand-accent: var(--primary);
+      --brand-primary: var(--primary-container);
+      --status-na-bg: #2A2A2B; --status-na-color: #C7C4D6; --status-na-border: transparent;
+      --status-ni-bg: #2D1B1B; --status-ni-color: #FFB4AB; --status-ni-border: transparent;
+      --status-pa-bg: #2D2208; --status-pa-color: #D29922; --status-pa-border: transparent;
+      --status-im-bg: #0D2818; --status-im-color: #4EDEA3; --status-im-border: transparent;
+      --status-np-bg: #1C1B1C; --status-np-color: #918F9F; --status-np-border: transparent;
+    }
+    [data-theme="light"] {
+      --ig1-color: #4338CA;
+      --ig2-color: #1D4ED8;
+      --ig3-color: #6D28D9;
+      --status-na-bg: #EEEEF0; --status-na-color: #44424F; --status-na-border: transparent;
+      --status-ni-bg: #FFDAD6; --status-ni-color: #BA1A1A; --status-ni-border: transparent;
+      --status-pa-bg: #FFF3D6; --status-pa-color: #B45309; --status-pa-border: transparent;
+      --status-im-bg: #D4F8EC; --status-im-color: #007650; --status-im-border: transparent;
+      --status-np-bg: #F2F2F3; --status-np-color: #76737F; --status-np-border: transparent;
+    }
+
+    /* Layout tweaks for assessment view inside main column */
+    .main { padding: 1.25rem 1.5rem 2rem; }
+    .asm-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.9rem;
+    }
+    .asm-header h1 {
+      font-family: var(--font-display);
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--on-surface);
+    }
+    .asm-header .lifecycle-badge { font-size: 0.65rem; padding: 2px 9px; }
+    .asm-header .export-link {
+      margin-left: auto;
+      font-size: 0.73rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--outline-variant);
+      color: var(--on-surface-variant);
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .asm-header .export-link:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 10%, transparent);
+    }
+
+    .readonly-banner {
+      background: color-mix(in srgb, var(--primary) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+      color: var(--on-surface);
+      padding: 0.65rem 0.95rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      margin-bottom: 0.9rem;
+    }
+    .readonly-banner strong { color: var(--primary); }
+
+    /* Dashboard row */
+    .dashboard-row {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.8rem;
+      align-items: stretch;
+    }
+    @media (max-width: 880px) { .dashboard-row { grid-template-columns: 1fr; } }
+
+    .stats-grid { display: flex; flex-direction: column; gap: 0.55rem; }
+    .stats-grid .stat-card {
+      flex: 1; display: flex; flex-direction: column; justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.85rem 1rem;
+    }
+    .stat-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); margin-bottom: 0.2rem;
+    }
+    .stat-val {
+      font-family: var(--font-display);
+      font-size: 1.85rem; font-weight: 800; line-height: 1.05;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-sub { font-size: 0.66rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .stat-card.c-total .stat-val { color: var(--on-surface); }
+    .stat-card.c-ig1   .stat-val { color: var(--color-success); }
+    .stat-card.c-ig2   .stat-val { color: var(--primary); }
+    .stat-card.c-ig3   .stat-val { color: var(--color-purple); }
+
+    .progress-track {
+      height: 4px; border-radius: var(--radius-pill);
+      background: var(--surface-high); overflow: hidden; margin-top: 0.35rem;
+    }
+    .progress-fill { height: 100%; border-radius: var(--radius-pill); transition: width 0.5s ease; }
+    .c-ig1 .progress-fill { background: var(--color-success); }
+    .c-ig2 .progress-fill { background: var(--primary); }
+    .c-ig3 .progress-fill { background: var(--color-purple); }
+
+    /* Radar */
+    .radar-section {
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.75rem;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .radar-wrap { width: 100%; max-width: 460px; }
+    .radar-wrap svg { width: 100%; height: auto; }
+    .radar-grid { fill: none; stroke: var(--outline-variant); stroke-width: 0.8; }
+    .radar-axis { stroke: var(--outline-variant); stroke-width: 0.5; }
+    .radar-data {
+      fill: var(--primary); fill-opacity: 0.18;
+      stroke: var(--primary); stroke-width: 2; stroke-linejoin: round;
+    }
+    .radar-dot { fill: var(--primary); }
+    .radar-label { font-size: 13px; fill: var(--on-surface-variant); }
+    .radar-pct { font-size: 11px; fill: var(--text-muted); pointer-events: none; }
+    .radar-ring-label { font-size: 10px; fill: var(--text-muted); pointer-events: none; }
+
+    /* Filter bar */
+    .filter-bar {
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      padding: 0.5rem 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+    .filter-select, .filter-search {
+      font-size: 0.76rem;
+      padding: 0.28rem 0.6rem;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-sm);
+      background: var(--surface-low);
+      color: var(--on-surface);
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .filter-select {
+      appearance: none; padding-right: 1.5rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+    }
+    .filter-select option { background: var(--surface); color: var(--on-surface); }
+    .filter-search { min-width: 0; flex: 1; max-width: 200px; }
+    .filter-select:focus, .filter-search:focus {
+      border-color: var(--surface-tint);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent);
+    }
+    .btn-filter {
+      font-size: 0.72rem; padding: 0.28rem 0.75rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--outline-variant);
+      background: var(--surface-low);
+      color: var(--on-surface-variant);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-filter:hover { background: var(--surface-high); border-color: var(--outline); color: var(--on-surface); }
+    .filter-spacer { flex: 1; }
+
+    /* Control cards */
+    .ctrl-card {
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 0.55rem;
+      overflow: hidden;
+    }
+    .ctrl-header {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.6rem 0.9rem;
+      cursor: pointer; user-select: none;
+      background: transparent; border: none;
+      width: 100%; text-align: left;
+      color: var(--on-surface);
+      transition: background 0.12s;
+      font-family: var(--font-body);
+    }
+    .ctrl-header:hover { background: var(--surface-low); }
+    .ctrl-num {
+      min-width: 30px; height: 22px;
+      background: var(--secondary-container);
+      color: var(--on-secondary-container); border-radius: var(--radius-sm);
+      font-size: 0.65rem; font-weight: 600;
+      letter-spacing: 0.06em;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .ctrl-title { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; flex: 1; }
+    .ctrl-meta { font-size: 0.66rem; color: var(--text-muted); white-space: nowrap; }
+    .ctrl-score { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+    .ctrl-chevron { color: var(--text-muted); font-size: 0.65rem; transition: transform 0.2s; flex-shrink: 0; }
+    .ctrl-header.collapsed .ctrl-chevron { transform: rotate(-90deg); }
+    .ctrl-body { border-top: 1px solid var(--outline-variant); padding: 0 0.9rem; }
+
+    /* Safeguard rows */
+    .sg-row {
+      display: grid;
+      grid-template-columns: 56px 1fr 170px 82px;
+      gap: 0.5rem; align-items: start;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .sg-row:last-child { border-bottom: none; }
+    .sg-row.hidden { display: none; }
+
+    .sg-id {
+      font-family: var(--font-display);
+      font-weight: 700; font-size: 0.78rem;
+      letter-spacing: -0.01em;
+      color: var(--primary); padding-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .sg-title-text {
+      font-size: 0.84rem; cursor: pointer;
+      color: var(--on-surface); line-height: 1.4;
+      transition: color 0.12s;
+    }
+    .sg-title-text:hover { color: var(--primary); }
+
+    .sg-badges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+    .fn-badge, .ac-badge, .ig-badge {
+      font-size: 0.6rem; padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      font-weight: 600; white-space: nowrap;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .fn-Govern   { background:#2D1F00; color:#D29922; }
+    .fn-Identify { background:#39485A; color:#B9C8DE; }
+    .fn-Protect  { background:#0D2818; color:#4EDEA3; }
+    .fn-Detect   { background:#2D1B1B; color:#FFB4AB; }
+    .fn-Respond  { background:#2D1500; color:#FBA06B; }
+    .fn-Recover  { background:#0A2D2D; color:#7DD3FC; }
+    [data-theme="light"] .fn-Govern   { background:#FEF3C7; color:#92400E; }
+    [data-theme="light"] .fn-Identify { background:#D4E4FA; color:#1E40AF; }
+    [data-theme="light"] .fn-Protect  { background:#D4F8EC; color:#007650; }
+    [data-theme="light"] .fn-Detect   { background:#FFDAD6; color:#BA1A1A; }
+    [data-theme="light"] .fn-Respond  { background:#FFEDD5; color:#9A3412; }
+    [data-theme="light"] .fn-Recover  { background:#CFFAFE; color:#155E75; }
+
+    .ac-badge { background: var(--surface-high); color: var(--on-surface-variant); }
+    .ig1 { background:#1F1B47; color:var(--ig1-color); }
+    .ig2 { background:#0F2340; color:var(--ig2-color); }
+    .ig3 { background:#2A1A47; color:var(--ig3-color); }
+    [data-theme="light"] .ig1 { background:#E0E7FF; color:#3730A3; }
+    [data-theme="light"] .ig2 { background:#DBEAFE; color:#1E3A8A; }
+    [data-theme="light"] .ig3 { background:#EDE9FE; color:#5B21B6; }
+
+    .sg-desc {
+      font-size: 0.76rem; color: var(--on-surface-variant);
+      margin-top: 6px; line-height: 1.55; display: none;
+      padding: 8px 10px;
+      background: var(--surface-low);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--outline);
+    }
+    .sg-desc.open { display: block; }
+    .updated-lbl { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
+
+    /* Status select */
+    .status-select {
+      font-size: 0.72rem; padding: 5px 22px 5px 10px;
+      border-radius: var(--radius-sm); width: 100%;
+      cursor: pointer; border: 1px solid transparent; font-weight: 500;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='currentColor'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 7px center;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      outline: none;
+    }
+    .status-select:focus { border-color: var(--surface-tint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent); }
+    .status-select:disabled { opacity: 0.7; cursor: not-allowed; }
+    .s-not_assessed    { background:var(--status-na-bg); color:var(--status-na-color); }
+    .s-not_implemented { background:var(--status-ni-bg); color:var(--status-ni-color); }
+    .s-partial         { background:var(--status-pa-bg); color:var(--status-pa-color); }
+    .s-implemented     { background:var(--status-im-bg); color:var(--status-im-color); }
+    .s-not_applicable  { background:var(--status-np-bg); color:var(--status-np-color); }
+
+    .flash-saved {
+      font-size: 0.62rem; color: var(--color-success);
+      opacity: 0; transition: opacity 0.3s;
+      text-align: center; margin-top: 4px; font-weight: 600;
+    }
+    .flash-saved.on { opacity: 1; }
+
+    /* Action buttons */
+    .action-btns { display: flex; flex-direction: column; gap: 4px; }
+    .btn-action {
+      font-size: 0.68rem; padding: 3px 6px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--outline-variant);
+      background: var(--surface-low);
+      color: var(--on-surface-variant);
+      cursor: pointer; transition: all 0.15s;
+      white-space: nowrap; text-align: center; width: 100%;
+    }
+    .btn-action:hover { background: var(--surface-high); border-color: var(--outline); color: var(--on-surface); }
+    .btn-action.has-items { border-color: var(--primary); color: var(--primary); }
+
+    /* Notes panel */
+    .notes-panel { display: none; margin-top: 8px; }
+    .notes-panel.open { display: block; }
+    .notes-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
+    .notes-list li {
+      font-size: 0.76rem;
+      background: var(--surface-low);
+      border-radius: var(--radius-sm);
+      padding: 6px 28px 6px 10px;
+      margin-bottom: 4px; position: relative;
+      border-left: 3px solid var(--primary);
+    }
+    .note-body { display: block; white-space: pre-wrap; word-break: break-word; color: var(--on-surface); }
+    .note-ts { font-size: 0.62rem; color: var(--text-muted); display: block; margin-top: 3px; }
+    .note-del {
+      position: absolute; top: 6px; right: 7px;
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0;
+    }
+    .note-del:hover { color: var(--color-danger); }
+    .note-add-form textarea {
+      width: 100%; font-size: 0.76rem;
+      border: 1px solid var(--outline-variant); border-radius: var(--radius-sm);
+      padding: 6px 8px; resize: vertical; min-height: 46px;
+      background: var(--surface); color: var(--on-surface);
+      outline: none;
+    }
+    .note-add-form textarea:focus {
+      border-color: var(--surface-tint);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent);
+    }
+    .btn-add-note {
+      margin-top: 6px; font-size: 0.68rem; padding: 4px 14px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+      border-radius: var(--radius-pill);
+      border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary-container));
+      color: var(--on-primary-container);
+      cursor: pointer;
+    }
+    .btn-add-note:hover { filter: brightness(1.08); }
+    .btn-add-note:disabled, .note-add-form textarea:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Attachments panel */
+    .att-panel { display: none; margin-top: 8px; }
+    .att-panel.open { display: block; }
+    .att-list { list-style: none; padding: 0; margin: 0 0 6px 0; }
+    .att-list li {
+      font-size: 0.76rem;
+      background: var(--surface-low);
+      border-radius: var(--radius-sm);
+      padding: 6px 28px 6px 10px;
+      margin-bottom: 4px; position: relative;
+      border-left: 3px solid var(--primary);
+    }
+    .att-link { color: var(--primary); text-decoration: none; word-break: break-all; font-weight: 500; }
+    .att-link:hover { text-decoration: underline; }
+    .att-meta { font-size: 0.62rem; color: var(--text-muted); display: block; margin-top: 3px; }
+    .att-del {
+      position: absolute; top: 6px; right: 7px;
+      background: none; border: none; color: var(--text-muted);
+      font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 0;
+    }
+    .att-del:hover { color: var(--color-danger); }
+    .drop-zone {
+      border: 2px dashed var(--outline);
+      border-radius: var(--radius-sm);
+      padding: 14px; text-align: center;
+      font-size: 0.76rem; color: var(--text-muted);
+      background: var(--surface-low);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .drop-zone.over { border-color: var(--primary); background: var(--surface-high); color: var(--primary); }
+    .drop-zone a { color: var(--primary); text-decoration: none; }
+
+    .no-match {
+      text-align: center; color: var(--text-muted);
+      padding: 1.75rem 0; font-size: 0.82rem; display: none;
+    }
+
+    [data-read-only="true"] .drop-zone,
+    [data-read-only="true"] .note-add-form,
+    [data-read-only="true"] .note-del,
+    [data-read-only="true"] .att-del { display: none !important; }
+{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="shell" id="shell">
+  {% include "_sidebar.html" %}
+
+  <main class="main" data-read-only="{{ 'true' if read_only else 'false' }}">
+    <div class="asm-header">
+      <h1>{{ active_assessment.name }}</h1>
+      <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ active_assessment.lifecycle }}</span>
+      <a class="export-link" href="{{ url_for('api_export_csv', asm_id=active_assessment.id) }}">Export CSV</a>
+    </div>
+
+    {% if read_only %}
+      <div class="readonly-banner">
+        <strong>Finalised.</strong> This assessment is locked for the record. No edits can be made.
+      </div>
+    {% endif %}
+
+    <div class="dashboard-row">
+      <div class="stats-grid">
+        <div class="stat-card c-total">
+          <div class="stat-label">Total Safeguards</div>
+          <div class="stat-val">153</div>
+          <div class="stat-sub" id="statAssessed">0 assessed</div>
+        </div>
+        <div class="stat-card c-ig1">
+          <div class="stat-label">IG1 Score</div>
+          <div class="stat-val" id="statIG1">0%</div>
+          <div class="progress-track"><div class="progress-fill" id="barIG1" style="width:0%"></div></div>
+        </div>
+        <div class="stat-card c-ig2">
+          <div class="stat-label">IG2 Score</div>
+          <div class="stat-val" id="statIG2">0%</div>
+          <div class="progress-track"><div class="progress-fill" id="barIG2" style="width:0%"></div></div>
+        </div>
+        <div class="stat-card c-ig3">
+          <div class="stat-label">IG3 Score</div>
+          <div class="stat-val" id="statIG3">0%</div>
+          <div class="progress-track"><div class="progress-fill" id="barIG3" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="radar-section">
+        <div class="radar-wrap">
+          <svg id="radarSvg" viewBox="-80 -10 660 520"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <select class="filter-select" id="fIG" onchange="applyFilters()">
+        <option value="all">All IG Levels</option>
+        <option value="ig1">IG1 only</option>
+        <option value="ig2">IG1 + IG2</option>
+        <option value="ig3">All (IG1+2+3)</option>
+      </select>
+      <select class="filter-select" id="fStatus" onchange="applyFilters()">
+        <option value="all">All Statuses</option>
+        <option value="not_assessed">Not Assessed</option>
+        <option value="not_implemented">Not Implemented</option>
+        <option value="partial">Partially Implemented</option>
+        <option value="implemented">Fully Implemented</option>
+        <option value="not_applicable">Not Applicable</option>
+      </select>
+      <select class="filter-select" id="fFn" onchange="applyFilters()">
+        <option value="all">All Functions</option>
+        <option value="Govern">Govern</option>
+        <option value="Identify">Identify</option>
+        <option value="Protect">Protect</option>
+        <option value="Detect">Detect</option>
+        <option value="Respond">Respond</option>
+        <option value="Recover">Recover</option>
+      </select>
+      <select class="filter-select" id="fCtrl" onchange="applyFilters()">
+        <option value="all">All Controls</option>
+        {% for ctrl in controls %}
+          <option value="{{ ctrl.id }}">C{{ '%02d' % ctrl.id }} — {{ ctrl.title }}</option>
+        {% endfor %}
+      </select>
+      <input type="search" class="filter-search" id="fSearch" placeholder="Search safeguards…" oninput="applyFilters()">
+      <div class="filter-spacer"></div>
+      <button class="btn-filter" onclick="setAllOpen(true)">Expand All</button>
+      <button class="btn-filter" onclick="setAllOpen(false)">Collapse All</button>
+    </div>
+
+    {% for ctrl in controls %}
+    <div class="ctrl-card" id="ctrl-{{ ctrl.id }}">
+      <button class="ctrl-header" onclick="toggleCtrl({{ ctrl.id }})">
+        <span class="ctrl-num">C{{ '%02d' % ctrl.id }}</span>
+        <span class="ctrl-title">{{ ctrl.title }}</span>
+        <span class="ctrl-meta">{{ ctrl.safeguards|length }} safeguards</span>
+        <span class="ctrl-score" id="ctrlscore-{{ ctrl.id }}">—</span>
+        <span class="ctrl-chevron">&#9660;</span>
+      </button>
+      <div class="ctrl-body" id="ctrlbody-{{ ctrl.id }}" style="display:none">
+        {% for sg in ctrl.safeguards %}
+        {% set parts = sg.id.split('.') %}
+        <div class="sg-row"
+             id="sgrow-{{ sg.id }}"
+             data-ig1="{{ 'true' if sg.ig1 else 'false' }}"
+             data-ig2="{{ 'true' if sg.ig2 else 'false' }}"
+             data-ig3="{{ 'true' if sg.ig3 else 'false' }}"
+             data-fn="{{ sg.function }}"
+             data-search="{{ sg.id|lower }} {{ sg.title|lower }} {{ sg.description|lower }}">
+          <div class="sg-id">C{{ '%02d' % parts[0]|int }}-{{ '%02d' % parts[1]|int }}</div>
+          <div>
+            <div class="sg-title-text" onclick="toggleDesc('{{ sg.id }}')">{{ sg.title }}</div>
+            <div class="sg-badges">
+              <span class="fn-badge fn-{{ sg.function }}">{{ sg.function }}</span>
+              <span class="ac-badge">{{ sg.asset_class }}</span>
+              {% if sg.ig1 %}<span class="ig-badge ig1">IG1</span>{% endif %}
+              {% if sg.ig2 %}<span class="ig-badge ig2">IG2</span>{% endif %}
+              {% if sg.ig3 %}<span class="ig-badge ig3">IG3</span>{% endif %}
+            </div>
+            <div class="sg-desc" id="desc-{{ sg.id }}">{{ sg.description }}</div>
+            <div class="notes-panel" id="notes-{{ sg.id }}">
+              <ul class="notes-list" id="noteslist-{{ sg.id }}"></ul>
+              <div class="note-add-form">
+                <textarea id="noteinput-{{ sg.id }}" placeholder="Add a note…" {% if read_only %}disabled{% endif %}></textarea>
+                <button class="btn-add-note" onclick="submitNote('{{ sg.id }}')" {% if read_only %}disabled{% endif %}>Add Note</button>
+              </div>
+            </div>
+            <div class="att-panel" id="att-{{ sg.id }}">
+              <ul class="att-list" id="attlist-{{ sg.id }}"></ul>
+              <div class="drop-zone" id="dz-{{ sg.id }}"
+                   ondragover="dzOver(event)" ondragleave="dzLeave(event)"
+                   ondrop="dzDrop(event, '{{ sg.id }}')">
+                <input type="file" id="attinput-{{ sg.id }}" multiple style="display:none"
+                       onchange="handleFiles(this, '{{ sg.id }}')">
+                Drag files here or <a href="#" onclick="document.getElementById('attinput-{{ sg.id }}').click();return false">browse</a>
+              </div>
+            </div>
+            <div class="updated-lbl" id="updated-{{ sg.id }}"></div>
+          </div>
+          <div>
+            <select class="status-select s-not_assessed" id="status-{{ sg.id }}"
+                    onchange="onStatusChange('{{ sg.id }}', this)" {% if read_only %}disabled{% endif %}>
+              <option value="not_assessed">Not Assessed</option>
+              <option value="not_implemented">Not Implemented</option>
+              <option value="partial">Partially Implemented</option>
+              <option value="implemented">Fully Implemented</option>
+              <option value="not_applicable">Not Applicable</option>
+            </select>
+            <div class="flash-saved" id="flash-{{ sg.id }}">&#10003; Saved</div>
+          </div>
+          <div class="action-btns">
+            <button class="btn-action" id="notesbtn-{{ sg.id }}" onclick="toggleNotes('{{ sg.id }}')">Notes</button>
+            <button class="btn-action" id="attbtn-{{ sg.id }}" onclick="toggleAtt('{{ sg.id }}')">Files</button>
+          </div>
+        </div>
+        {% endfor %}
+        <div class="no-match" id="nomatch-{{ ctrl.id }}">No safeguards match the current filters.</div>
+      </div>
+    </div>
+    {% endfor %}
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% include "_sidebar_script.html" %}
+<script>
+const ASSESSMENT_ID = {{ active_assessment.id }};
+const READ_ONLY = {{ 'true' if read_only else 'false' }};
+const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+function apiHeaders(extra) {
+  return Object.assign({ 'X-CSRF-Token': CSRF }, extra || {});
+}
+
+// --- State ---
+let sgData = {};  // sgId → { status, updated_at, notes: [], attachments: [] }
+
+// --- Boot ---
+async function init() {
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID);
+  if (!res.ok) return;
+  const data = await res.json();
+  sgData = data.safeguards || {};
+
+  for (const [id, a] of Object.entries(sgData)) {
+    const sel = document.getElementById('status-' + id);
+    if (sel) { sel.value = a.status; setSelectStyle(sel, a.status); }
+    const upd = document.getElementById('updated-' + id);
+    if (upd && a.updated_at) upd.textContent = 'Updated ' + a.updated_at;
+    renderNotes(id, a.notes || []);
+    renderAtts(id, a.attachments || []);
+  }
+
+  updateStats();
+  updateControlScores();
+  renderRadar();
+}
+
+// --- Toggle helpers ---
+function toggleDesc(id)  { document.getElementById('desc-'  + id).classList.toggle('open'); }
+function toggleNotes(id) { document.getElementById('notes-' + id).classList.toggle('open'); }
+function toggleAtt(id)   { document.getElementById('att-'   + id).classList.toggle('open'); }
+
+function toggleCtrl(id) {
+  const body = document.getElementById('ctrlbody-' + id);
+  const hdr = body.previousElementSibling;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  hdr.classList.toggle('collapsed', !isHidden);
+}
+
+function setAllOpen(open) {
+  document.querySelectorAll('.ctrl-body').forEach(b => {
+    b.style.display = open ? '' : 'none';
+    b.previousElementSibling.classList.toggle('collapsed', !open);
+  });
+}
+
+// --- Status / Save ---
+function setSelectStyle(sel, status) { sel.className = 'status-select s-' + status; }
+
+function onStatusChange(id, sel) {
+  setSelectStyle(sel, sel.value);
+  saveStatus(id);
+}
+
+async function saveStatus(sgId) {
+  if (READ_ONLY) return;
+  const status = document.getElementById('status-' + sgId).value;
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/safeguards/' + sgId, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ status })
+  });
+  if (!res.ok) return;
+  const data = await res.json();
+  if (!sgData[sgId]) sgData[sgId] = { notes: [], attachments: [] };
+  sgData[sgId].status = status;
+  sgData[sgId].updated_at = data.updated_at;
+  const upd = document.getElementById('updated-' + sgId);
+  if (upd) upd.textContent = 'Updated ' + data.updated_at;
+  const flash = document.getElementById('flash-' + sgId);
+  if (flash) { flash.classList.add('on'); setTimeout(() => flash.classList.remove('on'), 1500); }
+  updateStats();
+  updateControlScores();
+  renderRadar();
+}
+
+// --- Stats ---
+function getStatus(id) {
+  const sel = document.getElementById('status-' + id);
+  return sel ? sel.value : 'not_assessed';
+}
+
+function scoreVal(status) {
+  if (status === 'implemented')    return 1;
+  if (status === 'partial')        return 0.5;
+  if (status === 'not_applicable') return null;
+  return 0;
+}
+
+function updateStats() {
+  const fCtrl = document.getElementById('fCtrl').value;
+  const scope = fCtrl !== 'all' ? '#ctrl-' + fCtrl + ' .sg-row' : '.sg-row';
+  let assessed = 0, total = 0;
+  const ig = { ig1:{t:0,s:0}, ig2:{t:0,s:0}, ig3:{t:0,s:0} };
+
+  document.querySelectorAll(scope).forEach(row => {
+    total++;
+    const id = row.id.replace('sgrow-', '');
+    const status = getStatus(id);
+    if (status !== 'not_assessed') assessed++;
+    for (const k of ['ig1','ig2','ig3']) {
+      if (row.dataset[k] === 'true') {
+        const v = scoreVal(status);
+        if (v !== null) { ig[k].t++; ig[k].s += v; }
+      }
+    }
+  });
+
+  document.querySelector('.stat-card.c-total .stat-val').textContent = total;
+  document.getElementById('statAssessed').textContent = assessed + ' assessed';
+  for (const k of ['ig1','ig2','ig3']) {
+    const pct = ig[k].t === 0 ? 0 : Math.round((ig[k].s / ig[k].t) * 100);
+    document.getElementById('stat' + k.toUpperCase()).textContent = pct + '%';
+    document.getElementById('bar' + k.toUpperCase()).style.width = pct + '%';
+  }
+}
+
+function updateControlScores() {
+  document.querySelectorAll('.ctrl-card').forEach(card => {
+    const id = card.id.replace('ctrl-', '');
+    let total = 0, scored = 0;
+    card.querySelectorAll('.sg-row').forEach(row => {
+      const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
+      if (v !== null) { total++; scored += v; }
+    });
+    const pct = total === 0 ? 0 : Math.round((scored / total) * 100);
+    const el = document.getElementById('ctrlscore-' + id);
+    if (el) {
+      el.textContent = pct + '%';
+      el.style.color = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : pct > 0 ? '#ef4444' : '#94a3b8';
+    }
+  });
+}
+
+// --- Radar ---
+const RADAR_LABELS = {
+  1:'C01 Assets', 2:'C02 Software', 3:'C03 Data', 4:'C04 Config',
+  5:'C05 Accounts', 6:'C06 Access', 7:'C07 Vuln Mgmt', 8:'C08 Audit Logs',
+  9:'C09 Email/Web', 10:'C10 Malware', 11:'C11 Recovery', 12:'C12 Network',
+  13:'C13 Net Monitor', 14:'C14 Training', 15:'C15 Suppliers', 16:'C16 AppSec',
+  17:'C17 Incident Resp', 18:'C18 Pen Test'
+};
+
+function igRequired(igFilter) {
+  const igKeys = { all:[], ig1:['ig1'], ig2:['ig1','ig2'], ig3:['ig1','ig2','ig3'] };
+  return igKeys[igFilter];
+}
+function rowMatchesIG(row, required) {
+  return required.length === 0 || required.some(k => row.dataset[k] === 'true');
+}
+function scoreRows(selector, igFilter) {
+  const required = igRequired(igFilter);
+  let total = 0, scored = 0;
+  document.querySelectorAll(selector).forEach(row => {
+    if (!rowMatchesIG(row, required)) return;
+    const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
+    if (v !== null) { total++; scored += v; }
+  });
+  return total === 0 ? 0 : scored / total;
+}
+
+function getRadarItems() {
+  const fIG = document.getElementById('fIG').value;
+  const fCtrl = document.getElementById('fCtrl').value;
+  const fFn = document.getElementById('fFn').value;
+
+  if (fCtrl !== 'all') {
+    const card = document.getElementById('ctrl-' + fCtrl);
+    if (!card) return [];
+    const required = igRequired(fIG);
+    const items = [];
+    card.querySelectorAll('.sg-row').forEach(row => {
+      if (!rowMatchesIG(row, required)) return;
+      if (fFn !== 'all' && row.dataset.fn !== fFn) return;
+      const rawId = row.id.replace('sgrow-', '');
+      const parts = rawId.split('.');
+      const label = 'C' + parts[0].padStart(2,'0') + '-' + parts[1].padStart(2,'0');
+      const v = scoreVal(getStatus(rawId));
+      const score = v === null ? 0 : v;
+      items.push({ label, score, tooltip: label + ' — ' + getStatus(rawId).replace(/_/g,' ') });
+    });
+    return items;
+  }
+
+  if (fFn !== 'all') {
+    const required = igRequired(fIG);
+    const items = [];
+    for (let i = 1; i <= 18; i++) {
+      const card = document.getElementById('ctrl-' + i);
+      if (!card) continue;
+      let total = 0, scored = 0;
+      card.querySelectorAll('.sg-row').forEach(row => {
+        if (row.dataset.fn !== fFn) return;
+        if (!rowMatchesIG(row, required)) return;
+        const v = scoreVal(getStatus(row.id.replace('sgrow-', '')));
+        if (v !== null) { total++; scored += v; }
+      });
+      if (total === 0) continue;
+      const score = scored / total;
+      items.push({ label: RADAR_LABELS[i], score, tooltip: RADAR_LABELS[i] + ' (' + fFn + ') — ' + Math.round(score * 100) + '%' });
+    }
+    return items;
+  }
+
+  const items = [];
+  for (let i = 1; i <= 18; i++) {
+    const score = scoreRows('#ctrl-' + i + ' .sg-row', fIG);
+    items.push({ label: RADAR_LABELS[i], score, tooltip: RADAR_LABELS[i] + ' — ' + Math.round(score * 100) + '%' });
+  }
+  return items;
+}
+
+function renderRadar() {
+  const svg = document.getElementById('radarSvg');
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const cx = 250, cy = 250, R = 180;
+
+  const items = getRadarItems();
+  if (items.length === 0) return;
+  while (items.length < 3) items.push({ label: '', score: 0, tooltip: '' });
+  const N = items.length;
+  const step = (2 * Math.PI) / N;
+  const offset = -Math.PI / 2;
+
+  const px = (a, r) => cx + r * Math.cos(a);
+  const py = (a, r) => cy + r * Math.sin(a);
+
+  function ring(r) {
+    let pts = '';
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      pts += px(a, r) + ',' + py(a, r) + ' ';
+    }
+    return pts.trim();
+  }
+
+  [0.25, 0.5, 0.75, 1].forEach(frac => {
+    const poly = document.createElementNS(ns, 'polygon');
+    poly.setAttribute('points', ring(R * frac));
+    poly.setAttribute('class', 'radar-grid');
+    svg.appendChild(poly);
+  });
+
+  [0.25, 0.5, 0.75].forEach(frac => {
+    const lbl = document.createElementNS(ns, 'text');
+    lbl.setAttribute('x', cx + 3);
+    lbl.setAttribute('y', cy - R * frac + 1);
+    lbl.setAttribute('class', 'radar-ring-label');
+    lbl.textContent = Math.round(frac * 100) + '%';
+    svg.appendChild(lbl);
+  });
+
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+    line.setAttribute('x2', px(a, R)); line.setAttribute('y2', py(a, R));
+    line.setAttribute('class', 'radar-axis');
+    svg.appendChild(line);
+  }
+
+  let dataPts = '';
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const r = Math.max(R * items[i].score, 0);
+    dataPts += px(a, r) + ',' + py(a, r) + ' ';
+  }
+  const dataPoly = document.createElementNS(ns, 'polygon');
+  dataPoly.setAttribute('points', dataPts.trim());
+  dataPoly.setAttribute('class', 'radar-data');
+  svg.appendChild(dataPoly);
+
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const r = Math.max(R * items[i].score, 0);
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', px(a, r)); dot.setAttribute('cy', py(a, r));
+    dot.setAttribute('r', 3.5);
+    dot.setAttribute('class', 'radar-dot');
+    svg.appendChild(dot);
+  }
+
+  for (let i = 0; i < N; i++) {
+    const a = offset + i * step;
+    const lr = R + 24;
+    const lx = px(a, lr);
+    const ly = py(a, lr);
+
+    const g = document.createElementNS(ns, 'g');
+
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', lx); txt.setAttribute('y', ly);
+    txt.setAttribute('class', 'radar-label');
+
+    const deg = ((a * 180 / Math.PI) + 360) % 360;
+    if (deg > 95 && deg < 265) txt.setAttribute('text-anchor', 'end');
+    else if ((deg > 85 && deg <= 95) || (deg >= 265 && deg < 275)) txt.setAttribute('text-anchor', 'middle');
+    else txt.setAttribute('text-anchor', 'start');
+    txt.setAttribute('dominant-baseline', deg > 20 && deg < 160 ? 'hanging' : deg > 200 && deg < 340 ? 'auto' : 'central');
+    txt.textContent = items[i].label;
+    g.appendChild(txt);
+
+    const pctTxt = document.createElementNS(ns, 'text');
+    pctTxt.setAttribute('x', lx); pctTxt.setAttribute('y', ly + 14);
+    pctTxt.setAttribute('class', 'radar-pct');
+    pctTxt.setAttribute('text-anchor', txt.getAttribute('text-anchor'));
+    pctTxt.textContent = Math.round(items[i].score * 100) + '%';
+    g.appendChild(pctTxt);
+
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = items[i].tooltip;
+    g.appendChild(title);
+
+    svg.appendChild(g);
+  }
+}
+
+// --- Filtering ---
+function applyFilters() {
+  const fIG = document.getElementById('fIG').value;
+  const fStatus = document.getElementById('fStatus').value;
+  const fFn = document.getElementById('fFn').value;
+  const fCtrl = document.getElementById('fCtrl').value;
+  const fSearch = document.getElementById('fSearch').value.toLowerCase().trim();
+  const required = igRequired(fIG);
+
+  document.querySelectorAll('.ctrl-card').forEach(card => {
+    const ctrlId = card.id.replace('ctrl-', '');
+    if (fCtrl !== 'all' && ctrlId !== fCtrl) {
+      card.style.display = 'none';
+      return;
+    }
+    let anyVisible = false;
+    card.querySelectorAll('.sg-row').forEach(row => {
+      const id = row.id.replace('sgrow-', '');
+      let show = true;
+      if (required.length > 0 && !required.some(k => row.dataset[k] === 'true')) show = false;
+      if (show && fFn !== 'all' && row.dataset.fn !== fFn) show = false;
+      if (show && fStatus !== 'all' && getStatus(id) !== fStatus) show = false;
+      if (show && fSearch && !row.dataset.search.includes(fSearch)) show = false;
+      row.classList.toggle('hidden', !show);
+      if (show) anyVisible = true;
+    });
+    const noMatch = document.getElementById('nomatch-' + ctrlId);
+    if (noMatch) noMatch.style.display = anyVisible ? 'none' : 'block';
+    card.style.display = anyVisible ? '' : 'none';
+  });
+
+  updateStats();
+  renderRadar();
+}
+
+// --- Notes ---
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderNotes(sgId, notes) {
+  const list = document.getElementById('noteslist-' + sgId);
+  if (!list) return;
+  list.innerHTML = '';
+  for (const n of notes) list.appendChild(makeNoteEl(sgId, n));
+  updateNotesBtn(sgId, notes.length);
+}
+
+function makeNoteEl(sgId, note) {
+  const li = document.createElement('li');
+  li.id = 'note-' + note.id;
+  const delBtn = READ_ONLY
+    ? ''
+    : '<button class="note-del" title="Delete note" onclick="deleteNote(' + note.id + ',\'' + sgId + '\')">&times;</button>';
+  li.innerHTML =
+    '<span class="note-body">' + escHtml(note.body) + '</span>' +
+    '<span class="note-ts">' + note.created_at + '</span>' + delBtn;
+  return li;
+}
+
+function updateNotesBtn(sgId, count) {
+  const btn = document.getElementById('notesbtn-' + sgId);
+  if (!btn) return;
+  btn.textContent = count > 0 ? 'Notes (' + count + ')' : 'Notes';
+  btn.classList.toggle('has-items', count > 0);
+}
+
+async function submitNote(sgId) {
+  if (READ_ONLY) return;
+  const ta = document.getElementById('noteinput-' + sgId);
+  const body = ta.value.trim();
+  if (!body) return;
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/safeguards/' + sgId + '/notes', {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) return;
+  const note = await res.json();
+  document.getElementById('noteslist-' + sgId).appendChild(makeNoteEl(sgId, note));
+  ta.value = '';
+  if (!sgData[sgId]) sgData[sgId] = { notes: [], attachments: [] };
+  sgData[sgId].notes.push(note);
+  updateNotesBtn(sgId, sgData[sgId].notes.length);
+}
+
+async function deleteNote(noteId, sgId) {
+  if (READ_ONLY) return;
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/notes/' + noteId, {
+    method: 'DELETE',
+    headers: apiHeaders(),
+  });
+  if (!res.ok) return;
+  const el = document.getElementById('note-' + noteId);
+  if (el) el.remove();
+  if (sgData[sgId]) {
+    sgData[sgId].notes = sgData[sgId].notes.filter(n => n.id !== noteId);
+    updateNotesBtn(sgId, sgData[sgId].notes.length);
+  }
+}
+
+// --- Attachments ---
+function dzOver(e)  { if (!READ_ONLY) { e.preventDefault(); e.currentTarget.classList.add('over'); } }
+function dzLeave(e) { e.currentTarget.classList.remove('over'); }
+function dzDrop(e, sgId) {
+  if (READ_ONLY) return;
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  for (const f of e.dataTransfer.files) uploadFile(sgId, f);
+}
+function handleFiles(input, sgId) {
+  for (const f of input.files) uploadFile(sgId, f);
+  input.value = '';
+}
+
+async function uploadFile(sgId, file) {
+  if (READ_ONLY) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/safeguards/' + sgId + '/attachments', {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: fd,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({error:'Upload failed'}));
+    alert(err.error || 'Upload failed');
+    return;
+  }
+  const att = await res.json();
+  document.getElementById('attlist-' + sgId).appendChild(makeAttEl(sgId, att));
+  if (!sgData[sgId]) sgData[sgId] = { notes: [], attachments: [] };
+  if (!sgData[sgId].attachments) sgData[sgId].attachments = [];
+  sgData[sgId].attachments.push(att);
+  updateAttBtn(sgId, sgData[sgId].attachments.length);
+}
+
+function renderAtts(sgId, atts) {
+  const list = document.getElementById('attlist-' + sgId);
+  if (!list) return;
+  list.innerHTML = '';
+  for (const a of atts) list.appendChild(makeAttEl(sgId, a));
+  updateAttBtn(sgId, atts.length);
+}
+
+function makeAttEl(sgId, att) {
+  const li = document.createElement('li');
+  li.id = 'att-item-' + att.id;
+  const delBtn = READ_ONLY
+    ? ''
+    : '<button class="att-del" title="Delete" onclick="deleteAtt(' + att.id + ',\'' + sgId + '\')">&times;</button>';
+  li.innerHTML =
+    '<a class="att-link" href="/api/attachments/' + att.id + '" target="_blank">' + escHtml(att.filename) + '</a>' +
+    '<span class="att-meta">' + fmtSize(att.size) + ' &mdash; ' + att.uploaded_at + '</span>' + delBtn;
+  return li;
+}
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function updateAttBtn(sgId, count) {
+  const btn = document.getElementById('attbtn-' + sgId);
+  if (!btn) return;
+  btn.textContent = count > 0 ? 'Files (' + count + ')' : 'Files';
+  btn.classList.toggle('has-items', count > 0);
+}
+
+async function deleteAtt(attId, sgId) {
+  if (READ_ONLY) return;
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/attachments/' + attId, {
+    method: 'DELETE',
+    headers: apiHeaders(),
+  });
+  if (!res.ok) return;
+  const el = document.getElementById('att-item-' + attId);
+  if (el) el.remove();
+  if (sgData[sgId] && sgData[sgId].attachments) {
+    sgData[sgId].attachments = sgData[sgId].attachments.filter(a => a.id !== attId);
+    updateAttBtn(sgId, sgData[sgId].attachments.length);
+  }
+}
+
+init();
+</script>
+{% endblock %}

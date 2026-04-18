@@ -1,0 +1,49 @@
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <span class="sidebar-title">Workspace</span>
+    <button class="sidebar-toggle" id="sidebarToggle" title="Collapse sidebar" aria-label="Collapse sidebar">
+      <span id="sidebarToggleIcon">‹</span>
+    </button>
+  </div>
+
+  {% for org in orgs %}
+    <div class="org-section" data-org-id="{{ org.id }}">
+      <button class="org-header" type="button" onclick="toggleOrg({{ org.id }})">
+        <span class="org-chevron">▾</span>
+        <span class="asm-name">{{ org.name }}</span>
+      </button>
+      <div class="org-body">
+        {% if org.assessments %}
+          {% for asm in org.assessments %}
+            <a class="asm-link"
+               href="{{ url_for('view_assessment', org_id=org.id, asm_id=asm.id) }}"
+               data-active="{{ 'true' if active_assessment and active_assessment.id == asm.id else 'false' }}">
+              <span class="asm-name">{{ asm.name }}</span>
+              <span class="lifecycle-badge" data-lc="{{ asm.lifecycle }}">{{ asm.lifecycle }}</span>
+            </a>
+          {% endfor %}
+        {% else %}
+          <div class="sidebar-empty">No assessments yet.</div>
+        {% endif %}
+
+        {% if current_user and current_user.role == 'org_admin' %}
+          <button class="new-asm-toggle"
+                  type="button"
+                  onclick="showNewAsm({{ org.id }})"
+                  id="newAsmToggle-{{ org.id }}">
+            + New assessment
+          </button>
+          <form class="new-asm"
+                id="newAsmForm-{{ org.id }}"
+                method="POST"
+                action="{{ url_for('create_assessment', org_id=org.id) }}"
+                style="display:none;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
+            <button type="submit">Add</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</aside>

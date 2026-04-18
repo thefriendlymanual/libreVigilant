@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Home — LibreVigilant{% endblock %}
+
+{% block content %}
+<div class="shell" id="shell">
+  {% include "_sidebar.html" %}
+
+  <main class="main">
+    <div class="main-inner">
+      <div class="welcome-eyebrow">Welcome back, {{ current_user.display_name }}</div>
+      <h1 class="welcome-title">Your workspace</h1>
+      <p class="welcome-sub">
+        Pick an assessment from the sidebar, or create a new one. All activity is scoped
+        to the organisation you belong to.
+      </p>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Draft</div>
+          <div class="stat-value">{{ lifecycle_summary.draft }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active</div>
+          <div class="stat-value">{{ lifecycle_summary.active }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Finalised</div>
+          <div class="stat-value">{{ lifecycle_summary.finalised }}</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Getting started</h3>
+        <p>
+          An assessment is a named snapshot of your compliance posture against the 153
+          CIS v8.1.2 safeguards. Drafts can be edited freely; activating an assessment
+          marks it as the in-flight review; finalising locks it for the record.
+        </p>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% include "_sidebar_script.html" %}
+{% endblock %}

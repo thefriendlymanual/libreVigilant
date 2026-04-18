@@ -268,6 +268,13 @@ def _validate_csrf():
         abort(400)
 
 
+def _validate_csrf_api():
+    token = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("_csrf", "")
+    if not expected or not secrets.compare_digest(token, expected):
+        abort(400)
+
+
 @app.context_processor
 def _inject_globals():
     return {
@@ -446,7 +453,45 @@ def logout():
 
 
 # ---------------------------------------------------------------------------
-# Root redirect
+# Sidebar data
+# ---------------------------------------------------------------------------
+
+def _load_sidebar_orgs():
+    """Orgs the current user can see, each with its assessments.
+    Current schema is one-org-per-user; the shape supports multi-org later."""
+    if "user_id" not in session:
+        return []
+    with get_db() as conn:
+        orgs = conn.execute(
+            "SELECT id, name, slug FROM orgs WHERE id = ?",
+            (session["org_id"],),
+        ).fetchall()
+        result = []
+        for org in orgs:
+            rows = conn.execute(
+                "SELECT id, name, lifecycle, created_at FROM assessments "
+                "WHERE org_id = ? ORDER BY created_at DESC",
+                (org["id"],),
+            ).fetchall()
+            result.append({
+                "id": org["id"],
+                "name": org["name"],
+                "slug": org["slug"],
+                "assessments": [dict(a) for a in rows],
+            })
+        return result
+
+
+def _lifecycle_summary(orgs):
+    summary = {"draft": 0, "active": 0, "finalised": 0}
+    for org in orgs:
+        for a in org["assessments"]:
+            summary[a["lifecycle"]] = summary.get(a["lifecycle"], 0) + 1
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Home (authenticated shell)
 # ---------------------------------------------------------------------------
 
 @app.route("/")
@@ -457,23 +502,387 @@ def index():
         return redirect(url_for("setup"))
     if "user_id" not in session:
         return redirect(url_for("login"))
-    return redirect(url_for("org_assessments", org_id=session["org_id"]))
+
+    orgs = _load_sidebar_orgs()
+    return render_template(
+        "home.html",
+        orgs=orgs,
+        lifecycle_summary=_lifecycle_summary(orgs),
+        active_assessment=None,
+    )
 
 
 # ---------------------------------------------------------------------------
-# Assessment list — placeholder until Phase 2
+# Assessment management
 # ---------------------------------------------------------------------------
 
-@app.route("/orgs/<int:org_id>/assessments")
+@app.route("/orgs/<int:org_id>/assessments", methods=["POST"])
 @login_required
-def org_assessments(org_id):
+def create_assessment(org_id):
+    if org_id != session.get("org_id"):
+        abort(403)
+    if session.get("role") != "org_admin":
+        abort(403)
+    _validate_csrf()
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        abort(400)
+    name = name[:200]
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO assessments (org_id, name, lifecycle, created_by, created_at) "
+            "VALUES (?, ?, 'draft', ?, ?)",
+            (org_id, name, session["user_id"], now),
+        )
+        asm_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO audit_log "
+            "(assessment_id, user_id, user_display, action, new_value, occurred_at) "
+            "VALUES (?, ?, ?, 'assessment_created', ?, ?)",
+            (asm_id, session["user_id"], session.get("display_name", ""), name, now),
+        )
+        conn.commit()
+
+    return redirect(url_for("view_assessment", org_id=org_id, asm_id=asm_id))
+
+
+@app.route("/orgs/<int:org_id>/assessments/<int:asm_id>")
+@login_required
+def view_assessment(org_id, asm_id):
     if org_id != session.get("org_id"):
         abort(403)
     with get_db() as conn:
-        org = conn.execute("SELECT name FROM orgs WHERE id = ?", (org_id,)).fetchone()
-    if not org:
+        asm = conn.execute(
+            "SELECT id, name, lifecycle, created_at FROM assessments "
+            "WHERE id = ? AND org_id = ?",
+            (asm_id, org_id),
+        ).fetchone()
+    if not asm:
         abort(404)
-    return render_template("placeholder.html", org_name=org["name"])
+
+    orgs = _load_sidebar_orgs()
+    return render_template(
+        "assessment.html",
+        orgs=orgs,
+        active_assessment=dict(asm),
+        active_org_id=org_id,
+        controls=CIS_DATA["controls"],
+        read_only=(asm["lifecycle"] == "finalised"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Assessment API — data access + mutations
+# ---------------------------------------------------------------------------
+
+def _load_assessment_or_abort(asm_id):
+    """Fetch assessment + verify user can see it. Returns sqlite Row."""
+    with get_db() as conn:
+        asm = conn.execute(
+            "SELECT id, org_id, name, lifecycle FROM assessments WHERE id = ?",
+            (asm_id,),
+        ).fetchone()
+    if not asm:
+        abort(404)
+    if asm["org_id"] != session.get("org_id"):
+        abort(403)
+    return asm
+
+
+def _require_editable(asm):
+    if asm["lifecycle"] == "finalised":
+        abort(403)
+    if session.get("role") not in ("org_admin", "editor"):
+        abort(403)
+
+
+def _log(conn, asm_id, action, sg_id=None, old=None, new=None):
+    conn.execute(
+        "INSERT INTO audit_log "
+        "(assessment_id, user_id, user_display, action, safeguard_id, old_value, new_value, occurred_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (asm_id, session.get("user_id"), session.get("display_name", ""),
+         action, sg_id, old, new, datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+    )
+
+
+@app.route("/api/assessments/<int:asm_id>")
+@login_required
+def api_get_assessment(asm_id):
+    asm = _load_assessment_or_abort(asm_id)
+    with get_db() as conn:
+        statuses = conn.execute(
+            "SELECT safeguard_id, status, updated_at FROM assessment_safeguards "
+            "WHERE assessment_id = ?", (asm_id,),
+        ).fetchall()
+        notes = conn.execute(
+            "SELECT id, safeguard_id, body, created_at FROM notes "
+            "WHERE assessment_id = ? ORDER BY created_at",
+            (asm_id,),
+        ).fetchall()
+        atts = conn.execute(
+            "SELECT id, safeguard_id, filename, mime_type, size, uploaded_at "
+            "FROM attachments WHERE assessment_id = ? ORDER BY uploaded_at",
+            (asm_id,),
+        ).fetchall()
+
+    by_sg = {}
+    for s in statuses:
+        by_sg.setdefault(s["safeguard_id"], {"status": s["status"],
+                                              "updated_at": s["updated_at"],
+                                              "notes": [],
+                                              "attachments": []})
+    for n in notes:
+        by_sg.setdefault(n["safeguard_id"], {"status": "not_assessed",
+                                              "updated_at": None,
+                                              "notes": [],
+                                              "attachments": []})
+        by_sg[n["safeguard_id"]]["notes"].append(dict(n))
+    for a in atts:
+        by_sg.setdefault(a["safeguard_id"], {"status": "not_assessed",
+                                              "updated_at": None,
+                                              "notes": [],
+                                              "attachments": []})
+        by_sg[a["safeguard_id"]]["attachments"].append(dict(a))
+
+    return jsonify({
+        "id": asm["id"],
+        "name": asm["name"],
+        "lifecycle": asm["lifecycle"],
+        "safeguards": by_sg,
+    })
+
+
+@app.route("/api/assessments/<int:asm_id>/safeguards/<sg_id>", methods=["POST"])
+@login_required
+def api_update_status(asm_id, sg_id):
+    asm = _load_assessment_or_abort(asm_id)
+    _require_editable(asm)
+    _validate_csrf_api()
+
+    payload = request.get_json(silent=True) or {}
+    status = payload.get("status", "")
+    if status not in VALID_STATUSES:
+        return jsonify({"error": "Invalid status"}), 400
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        existing = conn.execute(
+            "SELECT status FROM assessment_safeguards "
+            "WHERE assessment_id = ? AND safeguard_id = ?",
+            (asm_id, sg_id),
+        ).fetchone()
+        old = existing["status"] if existing else "not_assessed"
+
+        if existing:
+            conn.execute(
+                "UPDATE assessment_safeguards SET status = ?, updated_at = ?, updated_by = ? "
+                "WHERE assessment_id = ? AND safeguard_id = ?",
+                (status, now, session["user_id"], asm_id, sg_id),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO assessment_safeguards "
+                "(assessment_id, safeguard_id, status, updated_at, updated_by) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (asm_id, sg_id, status, now, session["user_id"]),
+            )
+        if old != status:
+            _log(conn, asm_id, "status_change", sg_id=sg_id, old=old, new=status)
+        conn.commit()
+
+    return jsonify({"status": status, "updated_at": now})
+
+
+@app.route("/api/assessments/<int:asm_id>/safeguards/<sg_id>/notes", methods=["POST"])
+@login_required
+def api_add_note(asm_id, sg_id):
+    asm = _load_assessment_or_abort(asm_id)
+    _require_editable(asm)
+    _validate_csrf_api()
+
+    payload = request.get_json(silent=True) or {}
+    body = (payload.get("body") or "").strip()
+    if not body:
+        return jsonify({"error": "Note body is required"}), 400
+    body = body[:5000]
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO notes (assessment_id, safeguard_id, body, created_by, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (asm_id, sg_id, body, session["user_id"], now),
+        )
+        note_id = cur.lastrowid
+        _log(conn, asm_id, "note_added", sg_id=sg_id, new=body[:200])
+        conn.commit()
+
+    return jsonify({"id": note_id, "safeguard_id": sg_id, "body": body, "created_at": now})
+
+
+@app.route("/api/assessments/<int:asm_id>/notes/<int:note_id>", methods=["DELETE"])
+@login_required
+def api_delete_note(asm_id, note_id):
+    asm = _load_assessment_or_abort(asm_id)
+    _require_editable(asm)
+    _validate_csrf_api()
+
+    with get_db() as conn:
+        note = conn.execute(
+            "SELECT id, safeguard_id, body FROM notes WHERE id = ? AND assessment_id = ?",
+            (note_id, asm_id),
+        ).fetchone()
+        if not note:
+            abort(404)
+        conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+        _log(conn, asm_id, "note_deleted",
+             sg_id=note["safeguard_id"], old=note["body"][:200])
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/assessments/<int:asm_id>/safeguards/<sg_id>/attachments", methods=["POST"])
+@login_required
+def api_add_attachment(asm_id, sg_id):
+    asm = _load_assessment_or_abort(asm_id)
+    _require_editable(asm)
+    _validate_csrf_api()
+
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "No file"}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_EXT:
+        return jsonify({"error": f"File type '{ext}' not allowed"}), 400
+
+    # Sanitise the display filename; disk path is derived from attachment id.
+    safe_name = re.sub(r"[^\w\s.\-]", "_", f.filename)[:255]
+    mime = f.mimetype or mimetypes.guess_type(f.filename)[0] or "application/octet-stream"
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO attachments "
+            "(assessment_id, safeguard_id, filename, mime_type, size, uploaded_by, uploaded_at) "
+            "VALUES (?, ?, ?, ?, 0, ?, ?)",
+            (asm_id, sg_id, safe_name, mime, session["user_id"], now),
+        )
+        att_id = cur.lastrowid
+        path = disk_path(att_id, safe_name)
+        f.save(path)
+        size = os.path.getsize(path)
+        conn.execute("UPDATE attachments SET size = ? WHERE id = ?", (size, att_id))
+        _log(conn, asm_id, "attachment_added", sg_id=sg_id, new=safe_name)
+        conn.commit()
+
+    return jsonify({
+        "id": att_id,
+        "safeguard_id": sg_id,
+        "filename": safe_name,
+        "mime_type": mime,
+        "size": size,
+        "uploaded_at": now,
+    })
+
+
+@app.route("/api/assessments/<int:asm_id>/attachments/<int:att_id>", methods=["DELETE"])
+@login_required
+def api_delete_attachment(asm_id, att_id):
+    asm = _load_assessment_or_abort(asm_id)
+    _require_editable(asm)
+    _validate_csrf_api()
+
+    with get_db() as conn:
+        att = conn.execute(
+            "SELECT id, safeguard_id, filename FROM attachments "
+            "WHERE id = ? AND assessment_id = ?",
+            (att_id, asm_id),
+        ).fetchone()
+        if not att:
+            abort(404)
+        conn.execute("DELETE FROM attachments WHERE id = ?", (att_id,))
+        _log(conn, asm_id, "attachment_deleted",
+             sg_id=att["safeguard_id"], old=att["filename"])
+        conn.commit()
+
+    path = disk_path(att_id, att["filename"])
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/attachments/<int:att_id>")
+@login_required
+def api_get_attachment(att_id):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT a.id, a.filename, a.mime_type, a.assessment_id, s.org_id "
+            "FROM attachments a JOIN assessments s ON s.id = a.assessment_id "
+            "WHERE a.id = ?",
+            (att_id,),
+        ).fetchone()
+    if not row:
+        abort(404)
+    if row["org_id"] != session.get("org_id"):
+        abort(403)
+
+    path = disk_path(att_id, row["filename"])
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, mimetype=row["mime_type"],
+                     download_name=row["filename"], as_attachment=False)
+
+
+@app.route("/api/assessments/<int:asm_id>/export")
+@login_required
+def api_export_csv(asm_id):
+    asm = _load_assessment_or_abort(asm_id)
+
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT safeguard_id, status, updated_at FROM assessment_safeguards "
+            "WHERE assessment_id = ?", (asm_id,),
+        ).fetchall()
+    status_by_sg = {r["safeguard_id"]: dict(r) for r in rows}
+
+    import csv, io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Control", "Safeguard", "Title", "Function", "Asset Class",
+                "IG1", "IG2", "IG3", "Status", "Updated At"])
+    for ctrl in CIS_DATA["controls"]:
+        for sg in ctrl["safeguards"]:
+            parts = sg["id"].split(".")
+            sg_display = f"C{int(parts[0]):02d}-{int(parts[1]):02d}"
+            s = status_by_sg.get(sg["id"], {})
+            w.writerow([
+                f"C{ctrl['id']:02d}",
+                sg_display,
+                sg["title"],
+                sg["function"],
+                sg["asset_class"],
+                "Y" if sg["ig1"] else "",
+                "Y" if sg["ig2"] else "",
+                "Y" if sg["ig3"] else "",
+                s.get("status", "not_assessed"),
+                s.get("updated_at", "") or "",
+            ])
+
+    safe_name = re.sub(r"[^\w\-]", "_", asm["name"])[:80] or "assessment"
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=\"{safe_name}.csv\""},
+    )
 
 
 if __name__ == "__main__":
