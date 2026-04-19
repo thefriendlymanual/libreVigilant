@@ -525,7 +525,7 @@ def _load_sidebar_orgs():
 
 
 def _lifecycle_summary(orgs):
-    summary = {"draft": 0, "active": 0, "finalised": 0}
+    summary = {"draft": 0, "review": 0, "completed": 0}
     for org in orgs:
         for a in org["assessments"]:
             summary[a["lifecycle"]] = summary.get(a["lifecycle"], 0) + 1
@@ -606,7 +606,7 @@ def activate_assessment(org_id, asm_id):
         if asm["lifecycle"] != "draft":
             abort(400)
         conn.execute(
-            "UPDATE assessments SET lifecycle = 'active', start_date = ? WHERE id = ?",
+            "UPDATE assessments SET lifecycle = 'review', start_date = ? WHERE id = ?",
             (now[:10], asm_id),
         )
         _log(conn, asm_id, "assessment_activated")
@@ -628,14 +628,14 @@ def finalise_assessment(org_id, asm_id):
         ).fetchone()
         if not asm:
             abort(404)
-        if asm["lifecycle"] != "active":
+        if asm["lifecycle"] != "review":
             abort(400)
         conn.execute(
-            "UPDATE assessments SET lifecycle = 'finalised', finalised_by = ?, finalised_at = ?, end_date = ? "
+            "UPDATE assessments SET lifecycle = 'completed', finalised_by = ?, finalised_at = ?, end_date = ? "
             "WHERE id = ?",
             (session["user_id"], now, now[:10], asm_id),
         )
-        _log(conn, asm_id, "assessment_finalised")
+        _log(conn, asm_id, "assessment_completed")
         conn.commit()
     return redirect(url_for("view_assessment", org_id=org_id, asm_id=asm_id))
 
@@ -743,7 +743,7 @@ def view_assessment(org_id, asm_id):
         active_assessment=dict(asm),
         active_org_id=org_id,
         controls=CIS_DATA["controls"],
-        read_only=(asm["lifecycle"] == "finalised"),
+        read_only=(asm["lifecycle"] == "completed"),
     )
 
 
@@ -766,7 +766,7 @@ def _load_assessment_or_abort(asm_id):
 
 
 def _require_editable(asm):
-    if asm["lifecycle"] == "finalised":
+    if asm["lifecycle"] == "completed":
         abort(403)
     if _user_role_for_org(asm["org_id"]) not in ("org_admin", "editor"):
         abort(403)

@@ -19,7 +19,7 @@
                href="{{ url_for('view_assessment', org_id=org.id, asm_id=asm.id) }}"
                data-active="{{ 'true' if active_assessment and active_assessment.id == asm.id else 'false' }}">
               <span class="asm-name">{{ asm.name }}</span>
-              <span class="lifecycle-badge" data-lc="{{ asm.lifecycle }}">{{ asm.lifecycle }}</span>
+              <span class="lifecycle-badge" data-lc="{{ asm.lifecycle }}">{{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm.lifecycle, asm.lifecycle) }}</span>
             </a>
           {% endfor %}
         {% else %}

@@ -76,13 +76,13 @@
       color: var(--primary);
     }
     .lc-activate:hover { background: color-mix(in srgb, var(--primary) 28%, transparent); }
-    .lc-finalise {
+    .lc-complete {
       background: color-mix(in srgb, #4EDEA3 12%, transparent);
       border-color: color-mix(in srgb, #4EDEA3 40%, transparent);
       color: #4EDEA3;
     }
-    [data-theme="light"] .lc-finalise { color: #007650; border-color: #007650; background: #D4F8EC; }
-    .lc-finalise:hover { background: color-mix(in srgb, #4EDEA3 25%, transparent); }
+    [data-theme="light"] .lc-complete { color: #007650; border-color: #007650; background: #D4F8EC; }
+    .lc-complete:hover { background: color-mix(in srgb, #4EDEA3 25%, transparent); }
     .lc-delete {
       background: transparent;
       border-color: transparent;
@@ -448,22 +448,22 @@
   <main class="main" data-read-only="{{ 'true' if read_only else 'false' }}">
     <div class="asm-header">
       <h1>{{ active_assessment.name }}</h1>
-      <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ active_assessment.lifecycle }}</span>
+      <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(active_assessment.lifecycle, active_assessment.lifecycle) }}</span>
 
       {% if current_user and current_user.role == 'org_admin' %}
         {% if active_assessment.lifecycle == 'draft' %}
           <form method="POST" action="{{ url_for('activate_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;display:flex;gap:0.5rem;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-            <button type="submit" class="lc-action-btn lc-activate" onclick="return confirm('Activate this assessment? It will become read-only for status changes once finalised.')">Activate</button>
+            <button type="submit" class="lc-action-btn lc-activate" onclick="return confirm('Start review? The assessment will move to Review status.')">Start Review</button>
           </form>
           <form method="POST" action="{{ url_for('delete_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="display:flex;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="lc-action-btn lc-delete" onclick="return confirm('Delete this draft assessment? This cannot be undone.')">Delete</button>
           </form>
-        {% elif active_assessment.lifecycle == 'active' %}
+        {% elif active_assessment.lifecycle == 'review' %}
           <form method="POST" action="{{ url_for('finalise_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-            <button type="submit" class="lc-action-btn lc-finalise" onclick="return confirm('Finalise this assessment? It will be permanently locked for the record.')">Finalise</button>
+            <button type="submit" class="lc-action-btn lc-complete" onclick="return confirm('Complete this assessment? It will be permanently locked for the record.')">Complete</button>
           </form>
         {% endif %}
       {% else %}
