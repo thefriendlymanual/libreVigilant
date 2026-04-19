@@ -378,16 +378,16 @@
     .sidebar-toggle:hover { background: var(--surface-high); color: var(--on-surface); }
 
     .shell[data-sidebar-collapsed="true"] .sidebar-title,
-    .shell[data-sidebar-collapsed="true"] .org-section,
+    .shell[data-sidebar-collapsed="true"] .project-section,
     .shell[data-sidebar-collapsed="true"] .sidebar-footer {
       display: none;
     }
 
-    .org-section {
+    .project-section {
       border-radius: var(--radius-md);
       overflow: hidden;
     }
-    .org-header {
+    .project-header {
       display: flex;
       align-items: center;
       gap: 0.4rem;
@@ -405,18 +405,18 @@
       border-radius: var(--radius-sm);
       transition: background 0.15s;
     }
-    .org-header:hover { background: var(--surface-high); }
-    .org-chevron {
+    .project-header:hover { background: var(--surface-high); }
+    .project-chevron {
       display: inline-block;
       width: 10px;
       transition: transform 0.15s ease;
       color: var(--text-muted);
       font-size: 0.7rem;
     }
-    .org-section[data-collapsed="true"] .org-chevron { transform: rotate(-90deg); }
-    .org-section[data-collapsed="true"] .org-body { display: none; }
+    .project-section[data-collapsed="true"] .project-chevron { transform: rotate(-90deg); }
+    .project-section[data-collapsed="true"] .project-body { display: none; }
 
-    .org-body {
+    .project-body {
       padding: 0.15rem 0 0.4rem;
       display: flex;
       flex-direction: column;
@@ -530,7 +530,7 @@
       background: var(--surface);
     }
 
-    .new-org-toggle {
+    .new-project-toggle {
       margin: 0.15rem 0.6rem 0.1rem 0.6rem;
       background: transparent;
       border: 1px dashed var(--outline-variant);
@@ -544,7 +544,7 @@
       text-align: left;
       transition: all 0.15s;
     }
-    .new-org-toggle:hover {
+    .new-project-toggle:hover {
       color: var(--on-surface);
       border-color: var(--outline);
       background: var(--surface);
@@ -556,7 +556,7 @@
       margin-top: 0.5rem;
     }
 
-    .delete-org-btn {
+    .delete-project-btn {
       margin: 0.1rem 0.6rem 0.2rem 1.4rem;
       background: transparent;
       border: none;
@@ -569,7 +569,7 @@
       transition: color 0.15s;
       opacity: 0.6;
     }
-    .delete-org-btn:hover { color: #FFB4AB; opacity: 1; }
+    .delete-project-btn:hover { color: #FFB4AB; opacity: 1; }
 
     /* =============================================
        MAIN CONTENT AREA

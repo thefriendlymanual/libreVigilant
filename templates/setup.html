@@ -6,7 +6,7 @@
 <div class="auth-wrap">
   <div class="auth-card" style="max-width: 480px;">
     <h1>Set up LibreVigilant</h1>
-    <p class="auth-subtitle">Create your organisation and first administrator account.</p>
+    <p class="auth-subtitle">Create your administrator account to get started.</p>
 
     {% if errors %}
     <div class="alert alert-error" role="alert">
@@ -24,28 +24,13 @@
       <input type="hidden" name="_csrf" value="{{ csrf_token }}">
 
       <div class="field">
-        <label for="org_name">Organisation name</label>
-        <input
-          type="text"
-          id="org_name"
-          name="org_name"
-          autocomplete="organization"
-          autofocus
-          placeholder="Default Organisation"
-          value="{{ form.get('org_name', '') }}"
-        >
-        <span class="field-hint">Leave blank to use "Default Organisation".</span>
-      </div>
-
-      <div class="form-divider"></div>
-
-      <div class="field">
         <label for="display_name">Your name</label>
         <input
           type="text"
           id="display_name"
           name="display_name"
           autocomplete="name"
+          autofocus
           required
           value="{{ form.get('display_name', '') }}"
         >
@@ -87,7 +72,7 @@
         >
       </div>
 
-      <button type="submit" class="btn-primary">Create organisation &amp; sign in</button>
+      <button type="submit" class="btn-primary">Create account &amp; sign in</button>
     </form>
   </div>
 </div>

@@ -18,31 +18,31 @@
     if (icon) icon.textContent = isCollapsed ? '›' : '‹';
   }
 
-  document.querySelectorAll('.org-section').forEach(sec => {
-    const id = sec.dataset.orgId;
-    const saved = localStorage.getItem('librevig-sidebar-org-' + id);
+  document.querySelectorAll('.project-section').forEach(sec => {
+    const id = sec.dataset.projectId;
+    const saved = localStorage.getItem('librevig-sidebar-project-' + id);
     if (saved === 'collapsed') sec.dataset.collapsed = 'true';
   });
 })();
 
-function toggleOrg(orgId) {
-  const sec = document.querySelector('.org-section[data-org-id="' + orgId + '"]');
+function toggleProject(projectId) {
+  const sec = document.querySelector('.project-section[data-project-id="' + projectId + '"]');
   if (!sec) return;
   const nowCollapsed = sec.dataset.collapsed !== 'true';
   sec.dataset.collapsed = nowCollapsed ? 'true' : 'false';
-  localStorage.setItem('librevig-sidebar-org-' + orgId, nowCollapsed ? 'collapsed' : 'expanded');
+  localStorage.setItem('librevig-sidebar-project-' + projectId, nowCollapsed ? 'collapsed' : 'expanded');
 }
 
-function showNewAsm(orgId) {
-  document.getElementById('newAsmToggle-' + orgId).style.display = 'none';
-  const form = document.getElementById('newAsmForm-' + orgId);
+function showNewAsm(projectId) {
+  document.getElementById('newAsmToggle-' + projectId).style.display = 'none';
+  const form = document.getElementById('newAsmForm-' + projectId);
   form.style.display = 'flex';
   form.querySelector('input[name="name"]').focus();
 }
 
-function showNewOrg() {
-  document.getElementById('newOrgToggle').style.display = 'none';
-  const form = document.getElementById('newOrgForm');
+function showNewProject() {
+  document.getElementById('newProjectToggle').style.display = 'none';
+  const form = document.getElementById('newProjectForm');
   form.style.display = 'flex';
   form.querySelector('input[name="name"]').focus();
 }

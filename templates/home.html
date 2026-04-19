@@ -11,10 +11,10 @@
       <div class="welcome-eyebrow">Welcome back, {{ current_user.display_name }}</div>
       <h1 class="welcome-title">Your workspace</h1>
       <p class="welcome-sub">
-        {% if orgs %}
+        {% if projects %}
           Pick an assessment from the sidebar, or create a new one.
         {% else %}
-          Create an organisation using the sidebar to get started.
+          Create a project using the sidebar to get started.
         {% endif %}
       </p>
       <div class="stat-row">

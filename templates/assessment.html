@@ -450,18 +450,18 @@
       <h1>{{ active_assessment.name }}</h1>
       <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(active_assessment.lifecycle, active_assessment.lifecycle) }}</span>
 
-      {% if current_user and current_user.role == 'org_admin' %}
+      {% if current_user and current_user.role == 'admin' %}
         {% if active_assessment.lifecycle == 'draft' %}
-          <form method="POST" action="{{ url_for('activate_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;display:flex;gap:0.5rem;">
+          <form method="POST" action="{{ url_for('activate_assessment', project_id=active_project_id, asm_id=active_assessment.id) }}" style="margin-left:auto;display:flex;gap:0.5rem;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="lc-action-btn lc-activate" onclick="return confirm('Start review? The assessment will move to Review status.')">Start Review</button>
           </form>
-          <form method="POST" action="{{ url_for('delete_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="display:flex;">
+          <form method="POST" action="{{ url_for('delete_assessment', project_id=active_project_id, asm_id=active_assessment.id) }}" style="display:flex;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="lc-action-btn lc-delete" onclick="return confirm('Delete this draft assessment? This cannot be undone.')">Delete</button>
           </form>
         {% elif active_assessment.lifecycle == 'review' %}
-          <form method="POST" action="{{ url_for('finalise_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;">
+          <form method="POST" action="{{ url_for('finalise_assessment', project_id=active_project_id, asm_id=active_assessment.id) }}" style="margin-left:auto;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <button type="submit" class="lc-action-btn lc-complete" onclick="return confirm('Complete this assessment? It will be permanently locked for the record.')">Complete</button>
           </form>
@@ -475,7 +475,7 @@
 
     {% if read_only %}
       <div class="readonly-banner">
-        <strong>Finalised.</strong> This assessment is locked for the record. No edits can be made.
+        <strong>Completed.</strong> This assessment is locked for the record. No edits can be made.
       </div>
     {% endif %}
 

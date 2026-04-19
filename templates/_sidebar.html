@@ -6,17 +6,17 @@
     </button>
   </div>
 
-  {% for org in orgs %}
-    <div class="org-section" data-org-id="{{ org.id }}">
-      <button class="org-header" type="button" onclick="toggleOrg({{ org.id }})">
-        <span class="org-chevron">▾</span>
-        <span class="asm-name">{{ org.name }}</span>
+  {% for project in projects %}
+    <div class="project-section" data-project-id="{{ project.id }}">
+      <button class="project-header" type="button" onclick="toggleProject({{ project.id }})">
+        <span class="project-chevron">▾</span>
+        <span class="asm-name">{{ project.name }}</span>
       </button>
-      <div class="org-body">
-        {% if org.assessments %}
-          {% for asm in org.assessments %}
+      <div class="project-body">
+        {% if project.assessments %}
+          {% for asm in project.assessments %}
             <a class="asm-link"
-               href="{{ url_for('view_assessment', org_id=org.id, asm_id=asm.id) }}"
+               href="{{ url_for('view_assessment', project_id=project.id, asm_id=asm.id) }}"
                data-active="{{ 'true' if active_assessment and active_assessment.id == asm.id else 'false' }}">
               <span class="asm-name">{{ asm.name }}</span>
               <span class="lifecycle-badge" data-lc="{{ asm.lifecycle }}">{{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm.lifecycle, asm.lifecycle) }}</span>
@@ -26,28 +26,28 @@
           <div class="sidebar-empty">No assessments yet.</div>
         {% endif %}
 
-        {% if current_user and current_user.role == 'org_admin' %}
+        {% if current_user and current_user.role == 'admin' %}
           <button class="new-asm-toggle"
                   type="button"
-                  onclick="showNewAsm({{ org.id }})"
-                  id="newAsmToggle-{{ org.id }}">
+                  onclick="showNewAsm({{ project.id }})"
+                  id="newAsmToggle-{{ project.id }}">
             + New assessment
           </button>
           <form class="new-asm"
-                id="newAsmForm-{{ org.id }}"
+                id="newAsmForm-{{ project.id }}"
                 method="POST"
-                action="{{ url_for('create_assessment', org_id=org.id) }}"
+                action="{{ url_for('create_assessment', project_id=project.id) }}"
                 style="display:none;">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
             <button type="submit">Add</button>
           </form>
           <form method="POST"
-                action="{{ url_for('delete_org', org_id=org.id) }}"
+                action="{{ url_for('delete_project', project_id=project.id) }}"
                 style="margin-top:0.25rem;"
-                onsubmit="return confirm('Delete this organisation and ALL its assessments and data? This cannot be undone.')">
+                onsubmit="return confirm('Delete this project and ALL its assessments and data? This cannot be undone.')">
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-            <button type="submit" class="delete-org-btn">Delete organisation</button>
+            <button type="submit" class="delete-project-btn">Delete project</button>
           </form>
         {% endif %}
       </div>
@@ -56,10 +56,10 @@
 
   {% if current_user %}
     <div class="sidebar-footer">
-      <button class="new-org-toggle" type="button" onclick="showNewOrg()" id="newOrgToggle">+ New organisation</button>
-      <form class="new-asm" id="newOrgForm" method="POST" action="{{ url_for('create_org') }}" style="display:none;">
+      <button class="new-project-toggle" type="button" onclick="showNewProject()" id="newProjectToggle">+ New project</button>
+      <form class="new-asm" id="newProjectForm" method="POST" action="{{ url_for('create_project') }}" style="display:none;">
         <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-        <input type="text" name="name" placeholder="Organisation name" required maxlength="200" autocomplete="off">
+        <input type="text" name="name" placeholder="Project name" required maxlength="200" autocomplete="off">
         <button type="submit">Create</button>
       </form>
     </div>
