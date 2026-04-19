@@ -5,10 +5,14 @@ A self-hosted web app for tracking compliance against CIS Controls Version 8.1.2
 Built with Flask + SQLite. No external dependencies beyond Flask itself.
 
 ## Purpose
-Allows organisations to run named compliance assessments against the 153 CIS safeguards across
-18 controls, track notes and evidence per safeguard, view scores by IG level, generate a
-prioritised risk register, and compare improvements across assessments. Multiple organisations
-and users are supported with role-based access control.
+Allows a team to create **Projects** as named containers for compliance work. Each project holds
+assessments against the 153 CIS safeguards across 18 controls, with notes and evidence per
+safeguard, scores by IG level, a prioritised risk register, and cross-assessment comparison.
+
+The app is **single-tenant** — one instance serves one team. Multi-user is on the roadmap
+(multiple accounts sharing one instance with role-based access), but there is no concept of
+separate tenants or organisations. Users do not belong to a tenant; they belong to the
+instance and can be members of one or more Projects.
 
 ## Project Structure
 ```
@@ -21,10 +25,10 @@ and users are supported with role-based access control.
   templates/
     base.html           Shared layout (CSS tokens, navbar, theme toggle)
     login.html          Auth entry point
-    setup.html          One-time first-run org + admin setup
-    assessments.html    Per-org assessment list/manager
+    setup.html          One-time first-run admin account setup (no project created here)
+    home.html           Blank canvas / project list with collapsible left sidebar
     assessment.html     Main assessment view (Jinja2 SSR + vanilla JS)
-    users.html          User management (org_admin only)
+    users.html          User management (admin only) [planned]
   static/               (empty — all CSS/JS is inline in templates)
 ```
 
@@ -34,18 +38,13 @@ python3 app.py
 ```
 Access at http://localhost:5000 (also available on local network at port 5000).
 
-On first run with no existing data, visit `/setup` to create the first organisation and admin account.
+On first run, visit `/setup` to create the admin account. No project is created at this
+point — the user lands on a blank canvas and creates their first Project from the sidebar.
 
 Set `SECRET_KEY` env var for production — without it, Flask uses a random key that invalidates
 sessions on every restart:
 ```bash
 SECRET_KEY=your-secret-here python3 app.py
-```
-
-Flask was installed with:
-```bash
-python3 /tmp/get-pip.py --user --break-system-packages
-~/.local/bin/pip install flask --user --break-system-packages
 ```
 
 ## Data Model
@@ -54,19 +53,22 @@ python3 /tmp/get-pip.py --user --break-system-packages
 - 18 controls, each with a list of safeguards
 - Each safeguard: `id`, `asset_class`, `function`, `title`, `description`, `ig1`, `ig2`, `ig3` (booleans)
 
-**librevig.db** — 7 tables:
+**librevig.db** — tables:
 
-**`orgs`** — organisations
+**`projects`** — named containers for compliance work (currently called `orgs` in code — rename pending)
 - `id` (PK), `name`, `slug` (unique, URL-safe), `created_at`
 
-**`users`** — user accounts, scoped to one org
-- `id` (PK), `org_id` (FK), `email` (globally unique), `display_name`, `password_hash`
-- `role`: `org_admin` | `editor` | `viewer`
+**`users`** — user accounts for the instance
+- `id` (PK), `email` (globally unique), `display_name`, `password_hash`
 - `created_at`, `last_login_at`
 
-**`assessments`** — named assessments per org
-- `id` (PK), `org_id` (FK), `name`
-- `lifecycle`: `draft` → `active` → `finalised` (finalised is read-only)
+**`user_projects`** — membership + role per project (currently called `user_orgs` in code — rename pending)
+- `user_id` (FK), `project_id` (FK), `role`: `admin` | `editor` | `viewer`
+- PRIMARY KEY (`user_id`, `project_id`)
+
+**`assessments`** — named assessments per project
+- `id` (PK), `project_id` (FK), `name`
+- `lifecycle`: `draft` → `review` → `completed` (completed is read-only)
 - `start_date`, `end_date` (ISO date strings, nullable)
 - `created_by` (FK → users), `finalised_by` (FK → users), `finalised_at`, `created_at`
 
@@ -83,7 +85,7 @@ python3 /tmp/get-pip.py --user --break-system-packages
 
 **`audit_log`** — immutable record of all changes within an assessment
 - `id` (PK), `assessment_id` (FK), `user_id` (FK), `user_display` (snapshot of name at log time)
-- `action`: `status_change` | `assessment_created` | `assessment_activated` | `assessment_finalised` | `note_added` | `note_deleted` | `attachment_added` | `attachment_deleted`
+- `action`: `status_change` | `assessment_created` | `assessment_activated` | `assessment_completed` | `note_added` | `note_deleted` | `attachment_added` | `attachment_deleted`
 - `safeguard_id` (nullable — null for assessment-level events), `old_value`, `new_value`, `occurred_at`
 
 **`schema_migrations`** — tracks applied DB migrations
@@ -91,10 +93,13 @@ python3 /tmp/get-pip.py --user --break-system-packages
 
 ## RBAC
 
-| Action | org_admin | editor | viewer |
+Roles are per-project. The instance itself has no global role — the first account created via
+`/setup` gets `admin` on any project it creates.
+
+| Action | admin | editor | viewer |
 |---|---|---|---|
 | Manage users | Yes | No | No |
-| Create / activate / finalise assessments | Yes | No | No |
+| Create / start review / complete assessments | Yes | No | No |
 | Delete draft assessment | Yes | No | No |
 | Edit safeguard status, notes, attachments | Yes | Yes | No |
 | View audit log | Yes | Yes | No |
@@ -102,7 +107,7 @@ python3 /tmp/get-pip.py --user --break-system-packages
 | Export CSV | Yes | Yes | Yes |
 | View risk register | Yes | Yes | Yes |
 
-No self-registration — org_admin creates user accounts directly (no SMTP required).
+No self-registration — an admin creates user accounts directly (no SMTP required).
 
 ## API Routes
 
@@ -112,21 +117,21 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - `GET /logout` — clear session; redirect to login
 
 **Bootstrap**
-- `GET/POST /setup` — one-time setup; only accessible when no orgs exist
+- `GET/POST /setup` — one-time setup; only accessible when no users exist; creates admin account only (no project)
 
 **Root**
 - `GET /` — home page with collapsible left sidebar (logged in); else redirects to `/login`
 
-**Org Management**
-- `POST /orgs` — create org (any authenticated user can create their own org)
-- `GET /orgs/<id>` — redirects to home with that org's sidebar section expanded
+**Project Management** (currently `/orgs/` in code — rename pending)
+- `POST /projects` — create project (any authenticated user)
+- `POST /projects/<id>/delete` — delete project and all contents (admin)
 
 **Assessment Management**
-- `POST /orgs/<id>/assessments` — create assessment (org_admin)
-- `POST /orgs/<id>/assessments/<id>/activate` — draft → active (org_admin)
-- `POST /orgs/<id>/assessments/<id>/finalise` — active → finalised, read-only (org_admin)
-- `POST /orgs/<id>/assessments/<id>/delete` — delete draft (org_admin)
-- `GET /orgs/<id>/assessments/<id>` — full assessment accordion view (all roles)
+- `POST /projects/<id>/assessments` — create assessment (admin)
+- `POST /projects/<id>/assessments/<id>/activate` — draft → review (admin)
+- `POST /projects/<id>/assessments/<id>/finalise` — review → completed, read-only (admin)
+- `POST /projects/<id>/assessments/<id>/delete` — delete draft (admin)
+- `GET /projects/<id>/assessments/<id>` — full assessment accordion view (all roles)
 
 **Assessment Data APIs** (all scoped to `assessment_id`)
 - `GET /api/assessments/<id>` — all statuses + notes + attachments
@@ -139,42 +144,36 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - `GET /api/assessments/<id>/export` — download CSV (all roles)
 - `GET /api/assessments/<id>/audit-log` — paginated audit log (editor+)
 - `GET /api/assessments/<id>/risk-register` — computed risk register JSON (all roles)
-- `GET /api/orgs/<id>/compare?a=<id>&b=<id>` — cross-assessment score delta (all roles)
+- `GET /api/projects/<id>/compare?a=<id>&b=<id>` — cross-assessment score delta (all roles)
 
-**User Management** (org_admin only)
-- `GET /orgs/<id>/users` — user list page
-- `POST /orgs/<id>/users` — create user
-- `POST /orgs/<id>/users/<uid>/edit` — change role / display_name
-- `POST /orgs/<id>/users/<uid>/delete` — delete user
-- `GET/POST /orgs/<id>/users/<uid>/reset-password` — set new password
+**User Management** (admin only) [planned]
+- `GET /users` — user list page
+- `POST /users` — create user
+- `POST /users/<uid>/edit` — change role / display_name
+- `POST /users/<uid>/delete` — delete user
+- `GET/POST /users/<uid>/reset-password` — set new password
 
 ## UI Features
 
-**Existing (current)**
-- Dashboard: IG1/IG2/IG3 stat cards + custom SVG radar chart
-- Radar chart: context-sensitive — per-control, per-function, or per-safeguard mode
-- Per-control score in each control header (colour-coded green/amber/red)
+**Existing (working)**
+- Login / logout, /setup for first-run admin creation
+- Home page with collapsible left sidebar listing all projects + their assessments
+- Sidebar: inline create new project, create new assessment within a project, delete project
+- Assessment lifecycle: Draft → Review → Completed badges + action buttons (admin only)
+- Full CIS controls accordion with stat cards (IG1/IG2/IG3) and SVG radar chart
 - Cascading filters: IG level, status, security function, control group, free-text search
-- C-prefix IDs: C01–C18 / C01-01 (internal IDs unchanged)
 - Multi-note comment threads per safeguard with timestamps
 - Evidence file uploads (images, PDFs, Office docs, text/CSV), 50 MB limit
-- Expand/Collapse All, click-to-expand safeguard description
 - Status dropdown auto-saves with "Saved" flash
 - Export CSV, light/dark mode with localStorage persistence
 
-**Implemented**
-- Login page — email/password auth; no self-registration
-- /setup — first-run org + admin account creation
-- /logout
-
 **Planned**
-- **Home page with collapsible left sidebar** — primary navigation surface after login; sidebar lists all orgs the user belongs to, each expandable to show their assessments; inline actions to create a new org or a new assessment within an org; sidebar state (collapsed/expanded per org) persisted in `localStorage`; main content area shows a welcome/summary when no assessment is open
-- **Assessment view** — full CIS controls accordion adapted to the new schema; read-only banner when lifecycle is `finalised`; lifecycle badge in navbar
-- **Assessment lifecycle UI** — draft/active/finalised badge; activate and finalise actions for org_admin
 - **Audit log panel** — collapsible panel in assessment view; paginated chronological change history
 - **Risk register panel** — computed from `not_implemented` + `partial` safeguards; ranked by IG weight (IG1×3 + IG2×2 + IG3×1; halved for `partial`); exportable as CSV
 - **Cross-assessment comparison** — dual-polygon radar (current = indigo solid, previous = emerald dashed) + per-control delta table with +/- indicators
-- **User management page** — org_admin creates/edits/deletes users and assigns roles
+- **User management page** — admin creates/edits/deletes users and assigns per-project roles
+- **UX review** — deferred until after audit log + risk register are built
+- **Rename orgs → projects in code** — `orgs` table → `projects`, `user_orgs` → `user_projects`, routes `/orgs/` → `/projects/`, role `org_admin` → `admin`; requires a DB migration
 
 ## Key Implementation Decisions
 
@@ -184,31 +183,28 @@ No self-registration — org_admin creates user accounts directly (no SMTP requi
 - IG scoring: IG1 score = % of ig1=true safeguards implemented; IG2 = all ig1+ig2; IG3 = all.
 - Radar chart is custom SVG (no Chart.js) — consistent with zero-dependency philosophy.
 - CSS design token system for all colours, spacing, radii — see `DESIGN_SYSTEM.md`.
+- **Single-tenant**: the app does not support multiple isolated tenants. Multi-user (shared instance) is planned but not yet implemented.
 - **Sessions**: Flask signed cookie sessions; werkzeug password hashing (bundled — no new deps).
-- **Home page is the shell**: `GET /` renders the full page with sidebar; assessment views load inside it. The sidebar is always present on authenticated pages.
-- **Sidebar navigation**: collapsible left sidebar lists orgs + their assessments; collapse state stored in `localStorage` keyed by org id. New org / new assessment actions live in the sidebar, not on separate pages.
+- **Home page is the shell**: `GET /` renders the full page with sidebar; assessment views load inside it.
+- **Sidebar navigation**: collapsible left sidebar lists projects + their assessments; collapse state stored in `localStorage` keyed by project id.
+- **Blank canvas on first login**: `/setup` creates only the admin account; no project is created. The user creates their first project from the sidebar.
 - **Assessment isolation**: notes and attachments are assessment-scoped for audit integrity.
-- **`assessment_id` in URL, not session** — bookmarkable; URL org_id must match session org_id (403 otherwise).
+- **`assessment_id` in URL, not session** — bookmarkable.
 - **Audit log denormalisation**: `user_display` is snapshotted at write time so the trail survives user deletion.
-- **Attachment naming**: `uploads/{att_id}{ext}` with globally unique autoincrement IDs — no path collision across assessments; no directory restructuring needed.
-- **Risk register on demand**: computed at request time, not stored; excludes `not_assessed` safeguards to keep the register actionable.
-- **Schema migrations**: `init_db()` tracks applied migrations in `schema_migrations`; existing single-assessment data migrates automatically to a default org + "Initial Assessment" on first run post-upgrade.
+- **Attachment naming**: `uploads/{att_id}{ext}` — no path collision across assessments.
+- **Risk register on demand**: computed at request time, not stored; excludes `not_assessed` safeguards.
+- **Schema migrations**: `init_db()` tracks applied migrations in `schema_migrations`.
 
-## Status / What's Working
+## Pending Code / Naming Debt
 
-- 7-table schema with migration from old single-assessment schema
-- /setup (first-run org + admin), /login, /logout with Flask sessions
-- CSRF protection on all POST forms; werkzeug scrypt password hashing
-- SECRET_KEY warning on startup; SESSION_COOKIE_HTTPONLY + SAMESITE=Lax
-- /orgs/<id>/assessments placeholder (real home page with sidebar is next)
-- All 18 controls and 153 safeguards render correctly (legacy index.html, not yet wired to new schema)
-- Light/dark mode works; app runs on 0.0.0.0:5000
+The following are implemented under the old "org" terminology and need renaming in a future migration:
 
-## Potential Next Steps (future, not yet planned)
-
-- SSO / OAuth integration (currently email+password only)
-- Superadmin role spanning multiple orgs (for platform operators)
-- "Copy assessment" to carry forward status from a previous assessment as a starting point
-- Email notifications on assessment finalisation or user creation (requires SMTP config opt-in)
-- Custom risk scoring weights per org
-- Print / PDF report view
+| Current (code) | Target (user-facing + code) |
+|---|---|
+| `orgs` table | `projects` table |
+| `user_orgs` table | `user_projects` table |
+| `org_id` FK columns | `project_id` FK columns |
+| `/orgs/` URL prefix | `/projects/` URL prefix |
+| `org_admin` role value | `admin` |
+| "Organisation" in all UI text | "Project" |
+| `/setup` creates org + admin | `/setup` creates admin only |
