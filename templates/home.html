@@ -11,8 +11,11 @@
       <div class="welcome-eyebrow">Welcome back, {{ current_user.display_name }}</div>
       <h1 class="welcome-title">Your workspace</h1>
       <p class="welcome-sub">
-        Pick an assessment from the sidebar, or create a new one. All activity is scoped
-        to the organisation you belong to.
+        {% if orgs %}
+          Pick an assessment from the sidebar, or create a new one.
+        {% else %}
+          Create an organisation using the sidebar to get started.
+        {% endif %}
       </p>
       <div class="stat-row">
         <div class="stat-card">

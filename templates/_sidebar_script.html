@@ -39,4 +39,11 @@ function showNewAsm(orgId) {
   form.style.display = 'flex';
   form.querySelector('input[name="name"]').focus();
 }
+
+function showNewOrg() {
+  document.getElementById('newOrgToggle').style.display = 'none';
+  const form = document.getElementById('newOrgForm');
+  form.style.display = 'flex';
+  form.querySelector('input[name="name"]').focus();
+}
 </script>

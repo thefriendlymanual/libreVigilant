@@ -88,165 +88,194 @@ def init_db():
         """)
         conn.commit()
 
-        if conn.execute("SELECT 1 FROM schema_migrations WHERE version='0001'").fetchone():
-            return  # Already fully migrated.
+        if not conn.execute("SELECT 1 FROM schema_migrations WHERE version='0001'").fetchone():
+            # ---------------------------------------------------------------
+            # Detect and snapshot the old 3-table single-assessment schema.
+            # ---------------------------------------------------------------
+            old_statuses = []
+            old_notes = []
+            old_attachments = []
 
-        # -------------------------------------------------------------------
-        # Detect and snapshot the old 3-table single-assessment schema.
-        # Old `assessments` table holds per-safeguard status rows (PK: safeguard_id).
-        # New `assessments` table holds named assessment records (PK: id).
-        # -------------------------------------------------------------------
-        old_statuses = []
-        old_notes = []
-        old_attachments = []
+            tbl = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'"
+            ).fetchone()
+            if tbl:
+                cols = [row[1] for row in conn.execute("PRAGMA table_info(assessments)").fetchall()]
+                if "safeguard_id" in cols:
+                    old_statuses = conn.execute(
+                        "SELECT safeguard_id, status, updated_at FROM assessments"
+                    ).fetchall()
+                    old_notes = conn.execute(
+                        "SELECT safeguard_id, body, created_at FROM notes"
+                    ).fetchall()
+                    old_attachments = conn.execute(
+                        "SELECT id, safeguard_id, filename, mime_type, size, uploaded_at FROM attachments"
+                    ).fetchall()
+                    for tbl_name in ("attachments", "notes", "assessments"):
+                        conn.execute(f"DROP TABLE {tbl_name}")
+                    conn.commit()
 
-        tbl = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'"
-        ).fetchone()
-        if tbl:
-            cols = [row[1] for row in conn.execute("PRAGMA table_info(assessments)").fetchall()]
-            if "safeguard_id" in cols:
-                old_statuses = conn.execute(
-                    "SELECT safeguard_id, status, updated_at FROM assessments"
-                ).fetchall()
-                old_notes = conn.execute(
-                    "SELECT safeguard_id, body, created_at FROM notes"
-                ).fetchall()
-                old_attachments = conn.execute(
-                    "SELECT id, safeguard_id, filename, mime_type, size, uploaded_at FROM attachments"
-                ).fetchall()
-                for tbl_name in ("attachments", "notes", "assessments"):
-                    conn.execute(f"DROP TABLE {tbl_name}")
-                conn.commit()
-
-        # -------------------------------------------------------------------
-        # Create the 7-table schema.
-        # -------------------------------------------------------------------
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS orgs (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                name       TEXT NOT NULL,
-                slug       TEXT NOT NULL UNIQUE,
-                created_at TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                org_id        INTEGER NOT NULL REFERENCES orgs(id),
-                email         TEXT NOT NULL UNIQUE,
-                display_name  TEXT NOT NULL,
-                password_hash TEXT NOT NULL,
-                role          TEXT NOT NULL DEFAULT 'viewer',
-                created_at    TEXT NOT NULL,
-                last_login_at TEXT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS assessments (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                org_id       INTEGER NOT NULL REFERENCES orgs(id),
-                name         TEXT NOT NULL,
-                lifecycle    TEXT NOT NULL DEFAULT 'draft',
-                start_date   TEXT,
-                end_date     TEXT,
-                created_by   INTEGER REFERENCES users(id),
-                finalised_by INTEGER REFERENCES users(id),
-                finalised_at TEXT,
-                created_at   TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS assessment_safeguards (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                assessment_id INTEGER NOT NULL REFERENCES assessments(id),
-                safeguard_id  TEXT NOT NULL,
-                status        TEXT NOT NULL DEFAULT 'not_assessed',
-                updated_at    TEXT,
-                updated_by    INTEGER REFERENCES users(id),
-                UNIQUE(assessment_id, safeguard_id)
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS notes (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                assessment_id INTEGER NOT NULL REFERENCES assessments(id),
-                safeguard_id  TEXT NOT NULL,
-                body          TEXT NOT NULL,
-                created_by    INTEGER REFERENCES users(id),
-                created_at    TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS attachments (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                assessment_id INTEGER NOT NULL REFERENCES assessments(id),
-                safeguard_id  TEXT NOT NULL,
-                filename      TEXT NOT NULL,
-                mime_type     TEXT NOT NULL,
-                size          INTEGER NOT NULL,
-                uploaded_by   INTEGER REFERENCES users(id),
-                uploaded_at   TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_log (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                assessment_id INTEGER NOT NULL REFERENCES assessments(id),
-                user_id       INTEGER REFERENCES users(id),
-                user_display  TEXT NOT NULL,
-                action        TEXT NOT NULL,
-                safeguard_id  TEXT,
-                old_value     TEXT,
-                new_value     TEXT,
-                occurred_at   TEXT NOT NULL
-            )
-        """)
-        conn.commit()
-
-        # -------------------------------------------------------------------
-        # Migrate old data → default org + "Initial Assessment".
-        # -------------------------------------------------------------------
-        if old_statuses or old_notes or old_attachments:
-            now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-            cur = conn.execute(
-                "INSERT INTO orgs (name, slug, created_at) VALUES (?, ?, ?)",
-                ("Default Organisation", "default", now),
-            )
-            org_id = cur.lastrowid
-            cur = conn.execute(
-                "INSERT INTO assessments (org_id, name, lifecycle, created_at) VALUES (?, ?, 'active', ?)",
-                (org_id, "Initial Assessment", now),
-            )
-            asm_id = cur.lastrowid
-
-            for row in old_statuses:
-                conn.execute(
-                    "INSERT INTO assessment_safeguards "
-                    "(assessment_id, safeguard_id, status, updated_at) VALUES (?, ?, ?, ?)",
-                    (asm_id, row["safeguard_id"], row["status"], row["updated_at"]),
+            # ---------------------------------------------------------------
+            # Create the 7-table schema.
+            # ---------------------------------------------------------------
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS orgs (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name       TEXT NOT NULL,
+                    slug       TEXT NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL
                 )
-            for row in old_notes:
-                conn.execute(
-                    "INSERT INTO notes (assessment_id, safeguard_id, body, created_at) VALUES (?, ?, ?, ?)",
-                    (asm_id, row["safeguard_id"], row["body"], row["created_at"]),
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    org_id        INTEGER NOT NULL REFERENCES orgs(id),
+                    email         TEXT NOT NULL UNIQUE,
+                    display_name  TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role          TEXT NOT NULL DEFAULT 'viewer',
+                    created_at    TEXT NOT NULL,
+                    last_login_at TEXT
                 )
-            for row in old_attachments:
-                # Preserve original IDs so existing upload files on disk still resolve.
-                conn.execute(
-                    "INSERT INTO attachments "
-                    "(id, assessment_id, safeguard_id, filename, mime_type, size, uploaded_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (row["id"], asm_id, row["safeguard_id"],
-                     row["filename"], row["mime_type"], row["size"], row["uploaded_at"]),
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS assessments (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    org_id       INTEGER NOT NULL REFERENCES orgs(id),
+                    name         TEXT NOT NULL,
+                    lifecycle    TEXT NOT NULL DEFAULT 'draft',
+                    start_date   TEXT,
+                    end_date     TEXT,
+                    created_by   INTEGER REFERENCES users(id),
+                    finalised_by INTEGER REFERENCES users(id),
+                    finalised_at TEXT,
+                    created_at   TEXT NOT NULL
                 )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS assessment_safeguards (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assessment_id INTEGER NOT NULL REFERENCES assessments(id),
+                    safeguard_id  TEXT NOT NULL,
+                    status        TEXT NOT NULL DEFAULT 'not_assessed',
+                    updated_at    TEXT,
+                    updated_by    INTEGER REFERENCES users(id),
+                    UNIQUE(assessment_id, safeguard_id)
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS notes (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assessment_id INTEGER NOT NULL REFERENCES assessments(id),
+                    safeguard_id  TEXT NOT NULL,
+                    body          TEXT NOT NULL,
+                    created_by    INTEGER REFERENCES users(id),
+                    created_at    TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS attachments (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assessment_id INTEGER NOT NULL REFERENCES assessments(id),
+                    safeguard_id  TEXT NOT NULL,
+                    filename      TEXT NOT NULL,
+                    mime_type     TEXT NOT NULL,
+                    size          INTEGER NOT NULL,
+                    uploaded_by   INTEGER REFERENCES users(id),
+                    uploaded_at   TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assessment_id INTEGER NOT NULL REFERENCES assessments(id),
+                    user_id       INTEGER REFERENCES users(id),
+                    user_display  TEXT NOT NULL,
+                    action        TEXT NOT NULL,
+                    safeguard_id  TEXT,
+                    old_value     TEXT,
+                    new_value     TEXT,
+                    occurred_at   TEXT NOT NULL
+                )
+            """)
             conn.commit()
 
-        conn.execute(
-            "INSERT INTO schema_migrations (version, applied_at) VALUES ('0001', ?)",
-            (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
-        )
-        conn.commit()
+            # ---------------------------------------------------------------
+            # Migrate old data → default org + "Initial Assessment".
+            # ---------------------------------------------------------------
+            if old_statuses or old_notes or old_attachments:
+                now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                cur = conn.execute(
+                    "INSERT INTO orgs (name, slug, created_at) VALUES (?, ?, ?)",
+                    ("Default Organisation", "default", now),
+                )
+                org_id = cur.lastrowid
+                cur = conn.execute(
+                    "INSERT INTO assessments (org_id, name, lifecycle, created_at) VALUES (?, ?, 'active', ?)",
+                    (org_id, "Initial Assessment", now),
+                )
+                asm_id = cur.lastrowid
+
+                for row in old_statuses:
+                    conn.execute(
+                        "INSERT INTO assessment_safeguards "
+                        "(assessment_id, safeguard_id, status, updated_at) VALUES (?, ?, ?, ?)",
+                        (asm_id, row["safeguard_id"], row["status"], row["updated_at"]),
+                    )
+                for row in old_notes:
+                    conn.execute(
+                        "INSERT INTO notes (assessment_id, safeguard_id, body, created_at) VALUES (?, ?, ?, ?)",
+                        (asm_id, row["safeguard_id"], row["body"], row["created_at"]),
+                    )
+                for row in old_attachments:
+                    # Preserve original IDs so existing upload files on disk still resolve.
+                    conn.execute(
+                        "INSERT INTO attachments "
+                        "(id, assessment_id, safeguard_id, filename, mime_type, size, uploaded_at) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (row["id"], asm_id, row["safeguard_id"],
+                         row["filename"], row["mime_type"], row["size"], row["uploaded_at"]),
+                    )
+                conn.commit()
+
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES ('0001', ?)",
+                (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
+            )
+            conn.commit()
+
+        # -------------------------------------------------------------------
+        # Migration 0002 — user_orgs junction table for multi-org membership.
+        # -------------------------------------------------------------------
+        if not conn.execute("SELECT 1 FROM schema_migrations WHERE version='0002'").fetchone():
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_orgs (
+                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id   INTEGER NOT NULL REFERENCES users(id),
+                    org_id    INTEGER NOT NULL REFERENCES orgs(id),
+                    role      TEXT NOT NULL DEFAULT 'viewer',
+                    joined_at TEXT NOT NULL,
+                    UNIQUE(user_id, org_id)
+                )
+            """)
+            # Seed from each user's primary org.
+            conn.execute("""
+                INSERT OR IGNORE INTO user_orgs (user_id, org_id, role, joined_at)
+                SELECT id, org_id, role, created_at FROM users
+            """)
+            # Also seed from orgs where they created assessments
+            # (covers orgs they moved away from via the old create_org route).
+            conn.execute("""
+                INSERT OR IGNORE INTO user_orgs (user_id, org_id, role, joined_at)
+                SELECT DISTINCT a.created_by, a.org_id, 'org_admin',
+                       COALESCE(a.created_at, datetime('now'))
+                FROM assessments a WHERE a.created_by IS NOT NULL
+            """)
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES ('0002', ?)",
+                (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
+            )
+            conn.commit()
     finally:
         conn.close()
 
@@ -456,18 +485,31 @@ def logout():
 # Sidebar data
 # ---------------------------------------------------------------------------
 
+def _user_role_for_org(org_id):
+    """Return the current user's role in org_id, or None if not a member."""
+    if "user_id" not in session:
+        return None
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT role FROM user_orgs WHERE user_id = ? AND org_id = ?",
+            (session["user_id"], org_id),
+        ).fetchone()
+    return row["role"] if row else None
+
+
 def _load_sidebar_orgs():
-    """Orgs the current user can see, each with its assessments.
-    Current schema is one-org-per-user; the shape supports multi-org later."""
+    """All orgs the current user belongs to, each with their assessments."""
     if "user_id" not in session:
         return []
     with get_db() as conn:
-        orgs = conn.execute(
-            "SELECT id, name, slug FROM orgs WHERE id = ?",
-            (session["org_id"],),
+        org_rows = conn.execute(
+            "SELECT o.id, o.name, o.slug FROM orgs o "
+            "JOIN user_orgs uo ON uo.org_id = o.id "
+            "WHERE uo.user_id = ? ORDER BY o.name",
+            (session["user_id"],),
         ).fetchall()
         result = []
-        for org in orgs:
+        for org in org_rows:
             rows = conn.execute(
                 "SELECT id, name, lifecycle, created_at FROM assessments "
                 "WHERE org_id = ? ORDER BY created_at DESC",
@@ -519,9 +561,7 @@ def index():
 @app.route("/orgs/<int:org_id>/assessments", methods=["POST"])
 @login_required
 def create_assessment(org_id):
-    if org_id != session.get("org_id"):
-        abort(403)
-    if session.get("role") != "org_admin":
+    if _user_role_for_org(org_id) != "org_admin":
         abort(403)
     _validate_csrf()
 
@@ -549,10 +589,143 @@ def create_assessment(org_id):
     return redirect(url_for("view_assessment", org_id=org_id, asm_id=asm_id))
 
 
+@app.route("/orgs/<int:org_id>/assessments/<int:asm_id>/activate", methods=["POST"])
+@login_required
+def activate_assessment(org_id, asm_id):
+    if _user_role_for_org(org_id) != "org_admin":
+        abort(403)
+    _validate_csrf()
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        asm = conn.execute(
+            "SELECT id, lifecycle FROM assessments WHERE id = ? AND org_id = ?",
+            (asm_id, org_id),
+        ).fetchone()
+        if not asm:
+            abort(404)
+        if asm["lifecycle"] != "draft":
+            abort(400)
+        conn.execute(
+            "UPDATE assessments SET lifecycle = 'active', start_date = ? WHERE id = ?",
+            (now[:10], asm_id),
+        )
+        _log(conn, asm_id, "assessment_activated")
+        conn.commit()
+    return redirect(url_for("view_assessment", org_id=org_id, asm_id=asm_id))
+
+
+@app.route("/orgs/<int:org_id>/assessments/<int:asm_id>/finalise", methods=["POST"])
+@login_required
+def finalise_assessment(org_id, asm_id):
+    if _user_role_for_org(org_id) != "org_admin":
+        abort(403)
+    _validate_csrf()
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        asm = conn.execute(
+            "SELECT id, lifecycle FROM assessments WHERE id = ? AND org_id = ?",
+            (asm_id, org_id),
+        ).fetchone()
+        if not asm:
+            abort(404)
+        if asm["lifecycle"] != "active":
+            abort(400)
+        conn.execute(
+            "UPDATE assessments SET lifecycle = 'finalised', finalised_by = ?, finalised_at = ?, end_date = ? "
+            "WHERE id = ?",
+            (session["user_id"], now, now[:10], asm_id),
+        )
+        _log(conn, asm_id, "assessment_finalised")
+        conn.commit()
+    return redirect(url_for("view_assessment", org_id=org_id, asm_id=asm_id))
+
+
+@app.route("/orgs/<int:org_id>/assessments/<int:asm_id>/delete", methods=["POST"])
+@login_required
+def delete_assessment(org_id, asm_id):
+    if _user_role_for_org(org_id) != "org_admin":
+        abort(403)
+    _validate_csrf()
+    with get_db() as conn:
+        asm = conn.execute(
+            "SELECT id, lifecycle FROM assessments WHERE id = ? AND org_id = ?",
+            (asm_id, org_id),
+        ).fetchone()
+        if not asm:
+            abort(404)
+        if asm["lifecycle"] != "draft":
+            abort(400)
+        # Cascade-delete dependent rows (FK constraints are on, but SQLite needs explicit deletes
+        # unless ON DELETE CASCADE was set — safer to do it explicitly).
+        for table in ("audit_log", "attachments", "notes", "assessment_safeguards"):
+            conn.execute(f"DELETE FROM {table} WHERE assessment_id = ?", (asm_id,))
+        conn.execute("DELETE FROM assessments WHERE id = ?", (asm_id,))
+        conn.commit()
+    return redirect(url_for("index"))
+
+
+@app.route("/orgs", methods=["POST"])
+@login_required
+def create_org():
+    _validate_csrf()
+    name = request.form.get("name", "").strip()
+    if not name:
+        abort(400)
+    name = name[:200]
+    slug = _slugify(name)
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        base_slug = slug
+        counter = 2
+        while conn.execute("SELECT 1 FROM orgs WHERE slug = ?", (slug,)).fetchone():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        cur = conn.execute(
+            "INSERT INTO orgs (name, slug, created_at) VALUES (?, ?, ?)",
+            (name, slug, now),
+        )
+        org_id = cur.lastrowid
+        # Add the creating user as org_admin — don't change their primary org.
+        conn.execute(
+            "INSERT OR IGNORE INTO user_orgs (user_id, org_id, role, joined_at) VALUES (?, ?, 'org_admin', ?)",
+            (session["user_id"], org_id, now),
+        )
+        conn.commit()
+    return redirect(url_for("index"))
+
+
+@app.route("/orgs/<int:org_id>/delete", methods=["POST"])
+@login_required
+def delete_org(org_id):
+    if _user_role_for_org(org_id) != "org_admin":
+        abort(403)
+    _validate_csrf()
+    with get_db() as conn:
+        asm_ids = [
+            r["id"] for r in conn.execute(
+                "SELECT id FROM assessments WHERE org_id = ?", (org_id,)
+            ).fetchall()
+        ]
+        for asm_id in asm_ids:
+            for table in ("audit_log", "attachments", "notes", "assessment_safeguards"):
+                conn.execute(f"DELETE FROM {table} WHERE assessment_id = ?", (asm_id,))
+            conn.execute("DELETE FROM assessments WHERE id = ?", (asm_id,))
+        conn.execute("DELETE FROM user_orgs WHERE org_id = ?", (org_id,))
+        conn.execute("DELETE FROM orgs WHERE id = ?", (org_id,))
+        conn.commit()
+
+    # Redirect to home if the user still has other orgs, otherwise to login.
+    remaining = _load_sidebar_orgs()
+    if remaining:
+        return redirect(url_for("index"))
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/orgs/<int:org_id>/assessments/<int:asm_id>")
 @login_required
 def view_assessment(org_id, asm_id):
-    if org_id != session.get("org_id"):
+    if not _user_role_for_org(org_id):
         abort(403)
     with get_db() as conn:
         asm = conn.execute(
@@ -587,7 +760,7 @@ def _load_assessment_or_abort(asm_id):
         ).fetchone()
     if not asm:
         abort(404)
-    if asm["org_id"] != session.get("org_id"):
+    if not _user_role_for_org(asm["org_id"]):
         abort(403)
     return asm
 
@@ -595,7 +768,7 @@ def _load_assessment_or_abort(asm_id):
 def _require_editable(asm):
     if asm["lifecycle"] == "finalised":
         abort(403)
-    if session.get("role") not in ("org_admin", "editor"):
+    if _user_role_for_org(asm["org_id"]) not in ("org_admin", "editor"):
         abort(403)
 
 

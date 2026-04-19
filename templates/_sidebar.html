@@ -42,8 +42,26 @@
             <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
             <button type="submit">Add</button>
           </form>
+          <form method="POST"
+                action="{{ url_for('delete_org', org_id=org.id) }}"
+                style="margin-top:0.25rem;"
+                onsubmit="return confirm('Delete this organisation and ALL its assessments and data? This cannot be undone.')">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="delete-org-btn">Delete organisation</button>
+          </form>
         {% endif %}
       </div>
     </div>
   {% endfor %}
+
+  {% if current_user %}
+    <div class="sidebar-footer">
+      <button class="new-org-toggle" type="button" onclick="showNewOrg()" id="newOrgToggle">+ New organisation</button>
+      <form class="new-asm" id="newOrgForm" method="POST" action="{{ url_for('create_org') }}" style="display:none;">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="text" name="name" placeholder="Organisation name" required maxlength="200" autocomplete="off">
+        <button type="submit">Create</button>
+      </form>
+    </div>
+  {% endif %}
 </aside>

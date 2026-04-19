@@ -47,7 +47,6 @@
     }
     .asm-header .lifecycle-badge { font-size: 0.65rem; padding: 2px 9px; }
     .asm-header .export-link {
-      margin-left: auto;
       font-size: 0.73rem; font-weight: 600;
       text-transform: uppercase; letter-spacing: 0.07em;
       padding: 0.35rem 0.85rem;
@@ -62,6 +61,34 @@
       color: var(--primary);
       background: color-mix(in srgb, var(--primary) 10%, transparent);
     }
+    .lc-action-btn {
+      font-size: 0.73rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .lc-activate {
+      background: color-mix(in srgb, var(--primary) 15%, transparent);
+      border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+      color: var(--primary);
+    }
+    .lc-activate:hover { background: color-mix(in srgb, var(--primary) 28%, transparent); }
+    .lc-finalise {
+      background: color-mix(in srgb, #4EDEA3 12%, transparent);
+      border-color: color-mix(in srgb, #4EDEA3 40%, transparent);
+      color: #4EDEA3;
+    }
+    [data-theme="light"] .lc-finalise { color: #007650; border-color: #007650; background: #D4F8EC; }
+    .lc-finalise:hover { background: color-mix(in srgb, #4EDEA3 25%, transparent); }
+    .lc-delete {
+      background: transparent;
+      border-color: transparent;
+      color: var(--text-muted);
+    }
+    .lc-delete:hover { color: #FFB4AB; border-color: color-mix(in srgb, #FFB4AB 40%, transparent); }
 
     .readonly-banner {
       background: color-mix(in srgb, var(--primary) 12%, transparent);
@@ -422,6 +449,27 @@
     <div class="asm-header">
       <h1>{{ active_assessment.name }}</h1>
       <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ active_assessment.lifecycle }}</span>
+
+      {% if current_user and current_user.role == 'org_admin' %}
+        {% if active_assessment.lifecycle == 'draft' %}
+          <form method="POST" action="{{ url_for('activate_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;display:flex;gap:0.5rem;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="lc-action-btn lc-activate" onclick="return confirm('Activate this assessment? It will become read-only for status changes once finalised.')">Activate</button>
+          </form>
+          <form method="POST" action="{{ url_for('delete_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="display:flex;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="lc-action-btn lc-delete" onclick="return confirm('Delete this draft assessment? This cannot be undone.')">Delete</button>
+          </form>
+        {% elif active_assessment.lifecycle == 'active' %}
+          <form method="POST" action="{{ url_for('finalise_assessment', org_id=active_org_id, asm_id=active_assessment.id) }}" style="margin-left:auto;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="lc-action-btn lc-finalise" onclick="return confirm('Finalise this assessment? It will be permanently locked for the record.')">Finalise</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <span style="margin-left:auto;"></span>
+      {% endif %}
+
       <a class="export-link" href="{{ url_for('api_export_csv', asm_id=active_assessment.id) }}">Export CSV</a>
     </div>
 
