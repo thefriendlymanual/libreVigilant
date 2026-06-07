@@ -438,6 +438,60 @@
     [data-read-only="true"] .note-add-form,
     [data-read-only="true"] .note-del,
     [data-read-only="true"] .att-del { display: none !important; }
+
+    .audit-section {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .audit-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      background: var(--surface-2);
+      cursor: pointer; user-select: none;
+      font-weight: 600; font-size: 0.88rem;
+      border: none; width: 100%; text-align: left;
+      color: var(--text-primary);
+    }
+    .audit-header:hover { background: var(--surface-3); }
+    .audit-chevron {
+      margin-left: auto; transition: transform 0.2s;
+      font-size: 0.7rem; color: var(--text-muted);
+    }
+    .audit-header.collapsed .audit-chevron { transform: rotate(-90deg); }
+    .audit-body { display: none; }
+    .audit-body.open { display: block; }
+    .audit-list {
+      list-style: none; margin: 0; padding: 0;
+      font-size: 0.82rem;
+    }
+    .audit-entry {
+      display: grid;
+      grid-template-columns: 10rem 8rem 1fr;
+      gap: 0.5rem;
+      padding: 0.45rem 1rem;
+      border-top: 1px solid var(--border);
+      align-items: baseline;
+    }
+    .audit-entry:first-child { border-top: none; }
+    .audit-ts { font-family: monospace; color: var(--text-muted); font-size: 0.78rem; }
+    .audit-user { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .audit-action { color: var(--text-primary); }
+    .audit-footer {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--text-muted);
+      background: var(--surface-2);
+    }
+    .audit-footer button {
+      padding: 0.2rem 0.6rem; font-size: 0.78rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-1); color: var(--text-primary); cursor: pointer;
+    }
+    .audit-footer button:disabled { opacity: 0.4; cursor: default; }
+    .audit-empty { padding: 1.5rem 1rem; color: var(--text-muted); font-size: 0.84rem; text-align: center; }
 {% endblock %}
 
 {% block content %}
@@ -615,6 +669,24 @@
       </div>
     </div>
     {% endfor %}
+
+    {% if user_role in ('admin', 'editor') %}
+    <div class="audit-section">
+      <button class="audit-header collapsed" id="auditToggle" onclick="toggleAudit()">
+        Audit Log
+        <span class="audit-chevron">&#9660;</span>
+      </button>
+      <div class="audit-body" id="auditBody">
+        <ul class="audit-list" id="auditList"></ul>
+        <div class="audit-footer" id="auditFooter" style="display:none">
+          <button id="auditPrev" onclick="loadAudit(auditPage-1)" disabled>&#8592; Prev</button>
+          <span id="auditPageInfo"></span>
+          <button id="auditNext" onclick="loadAudit(auditPage+1)">Next &#8594;</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
   </main>
 </div>
 {% endblock %}
@@ -1128,6 +1200,88 @@ async function deleteAtt(attId, sgId) {
   if (sgData[sgId] && sgData[sgId].attachments) {
     sgData[sgId].attachments = sgData[sgId].attachments.filter(a => a.id !== attId);
     updateAttBtn(sgId, sgData[sgId].attachments.length);
+  }
+}
+
+// --- Audit Log ---
+let auditPage = 1;
+let auditLoaded = false;
+
+const ACTION_LABELS = {
+  created: 'Assessment created',
+  review_started: 'Moved to Review',
+  completed: 'Marked Completed',
+};
+
+function fmtSgId(raw) {
+  if (!raw) return '';
+  const [ctrl, sub] = raw.split('.');
+  return 'C' + ctrl.padStart(2, '0') + '-' + (sub || '').padStart(2, '0');
+}
+
+function fmtAction(e) {
+  if (e.action === 'status_change') {
+    const sg = e.safeguard_id ? fmtSgId(e.safeguard_id) : '';
+    const oldL = (e.old_value || 'not_assessed').replace(/_/g, ' ');
+    const newL = (e.new_value || '').replace(/_/g, ' ');
+    return (sg ? sg + ': ' : '') + oldL + ' → ' + newL;
+  }
+  if (e.action === 'note_add' || e.action === 'note_delete') {
+    const verb = e.action === 'note_add' ? 'Note added' : 'Note deleted';
+    const sg = e.safeguard_id ? ' on ' + fmtSgId(e.safeguard_id) : '';
+    return verb + sg;
+  }
+  if (e.action === 'attachment_add' || e.action === 'attachment_delete') {
+    const verb = e.action === 'attachment_add' ? 'File attached' : 'File removed';
+    const sg = e.safeguard_id ? ' on ' + fmtSgId(e.safeguard_id) : '';
+    return verb + (e.new_value || e.old_value ? ' (' + (e.new_value || e.old_value) + ')' : '') + sg;
+  }
+  return ACTION_LABELS[e.action] || e.action;
+}
+
+function fmtTs(iso) {
+  if (!iso) return '';
+  return iso.replace('T', ' ').replace('Z', '').slice(0, 16);
+}
+
+async function loadAudit(page) {
+  auditPage = page;
+  const res = await fetch('/api/assessments/' + ASSESSMENT_ID + '/audit-log?page=' + page);
+  if (!res.ok) return;
+  const data = await res.json();
+  const list = document.getElementById('auditList');
+  list.innerHTML = '';
+  if (data.entries.length === 0 && page === 1) {
+    list.innerHTML = '<li class="audit-empty">No entries yet.</li>';
+    document.getElementById('auditFooter').style.display = 'none';
+    return;
+  }
+  for (const e of data.entries) {
+    const li = document.createElement('li');
+    li.className = 'audit-entry';
+    li.innerHTML =
+      '<span class="audit-ts">' + escHtml(fmtTs(e.occurred_at)) + '</span>' +
+      '<span class="audit-user">' + escHtml(e.user_display) + '</span>' +
+      '<span class="audit-action">' + escHtml(fmtAction(e)) + '</span>';
+    list.appendChild(li);
+  }
+  const totalPages = Math.ceil(data.total / data.per_page);
+  const footer = document.getElementById('auditFooter');
+  footer.style.display = totalPages > 1 ? '' : 'none';
+  document.getElementById('auditPageInfo').textContent = 'Page ' + page + ' of ' + totalPages;
+  document.getElementById('auditPrev').disabled = page <= 1;
+  document.getElementById('auditNext').disabled = page >= totalPages;
+}
+
+function toggleAudit() {
+  const hdr = document.getElementById('auditToggle');
+  const body = document.getElementById('auditBody');
+  const open = !body.classList.contains('open');
+  body.classList.toggle('open', open);
+  hdr.classList.toggle('collapsed', !open);
+  if (open && !auditLoaded) {
+    auditLoaded = true;
+    loadAudit(1);
   }
 }
 

@@ -806,6 +806,7 @@ def view_assessment(project_id, asm_id):
         active_project_id=project_id,
         controls=CIS_DATA["controls"],
         read_only=(asm["lifecycle"] == "completed"),
+        user_role=_user_role_for_project(project_id),
     )
 
 
@@ -888,6 +889,33 @@ def api_get_assessment(asm_id):
         "name": asm["name"],
         "lifecycle": asm["lifecycle"],
         "safeguards": by_sg,
+    })
+
+
+@app.route("/api/assessments/<int:asm_id>/audit-log")
+@login_required
+def api_audit_log(asm_id):
+    asm = _load_assessment_or_abort(asm_id)
+    if _user_role_for_project(asm["project_id"]) not in ("admin", "editor"):
+        abort(403)
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 25
+    offset = (page - 1) * per_page
+    with get_db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM audit_log WHERE assessment_id = ?", (asm_id,)
+        ).fetchone()[0]
+        rows = conn.execute(
+            "SELECT user_display, action, safeguard_id, old_value, new_value, occurred_at "
+            "FROM audit_log WHERE assessment_id = ? "
+            "ORDER BY occurred_at DESC LIMIT ? OFFSET ?",
+            (asm_id, per_page, offset),
+        ).fetchall()
+    return jsonify({
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "entries": [dict(r) for r in rows],
     })
 
 
