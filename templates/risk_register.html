@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}Risk Register — {{ project.name }} — LibreVigilant{% endblock %}
+
+{% block extra_styles %}
+  :root, [data-theme="dark"] {
+    --status-na-bg: #2A2A2B; --status-na-color: #C7C4D6;
+    --status-ni-bg: #2D1B1B; --status-ni-color: #FFB4AB;
+    --status-pa-bg: #2D2208; --status-pa-color: #D29922;
+    --status-im-bg: #0D2818; --status-im-color: #4EDEA3;
+    --status-np-bg: #1C1B1C; --status-np-color: #918F9F;
+    --ig1-color: #A5B4FC;
+    --ig2-color: #93C5FD;
+    --ig3-color: #C4B5FD;
+  }
+  [data-theme="light"] {
+    --status-na-bg: #EEEEF0; --status-na-color: #44424F;
+    --status-ni-bg: #FFDAD6; --status-ni-color: #BA1A1A;
+    --status-pa-bg: #FFF3D6; --status-pa-color: #B45309;
+    --status-im-bg: #D4F8EC; --status-im-color: #007650;
+    --status-np-bg: #F2F2F3; --status-np-color: #76737F;
+    --ig1-color: #4338CA;
+    --ig2-color: #1D4ED8;
+    --ig3-color: #6D28D9;
+  }
+
+  .rr-main { padding: 1.75rem 2rem 3rem; overflow-y: auto; }
+
+  .rr-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .rr-eyebrow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+    margin-bottom: 0.3rem;
+  }
+  .rr-title {
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--on-surface);
+  }
+
+  .rr-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .rr-import-form { display: flex; align-items: center; gap: 0.5rem; }
+  .rr-import-form select {
+    background: var(--surface-highest);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    color: var(--on-surface);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    padding: 0.38rem 0.6rem;
+    outline: none;
+    max-width: 200px;
+  }
+  .rr-import-form select:focus { border-color: var(--surface-tint); }
+
+  .btn-rr {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .btn-rr-primary {
+    background: var(--primary-container);
+    color: var(--on-primary-container);
+    border: none;
+  }
+  .btn-rr-primary:hover { opacity: 0.85; }
+  .btn-rr-secondary {
+    background: transparent;
+    border: 1px solid var(--outline-variant);
+    color: var(--on-surface-variant);
+  }
+  .btn-rr-secondary:hover { background: var(--surface-high); color: var(--on-surface); border-color: var(--outline); }
+  .btn-rr-primary:disabled, .btn-rr-secondary:disabled { opacity: 0.4; cursor: default; }
+
+  .rr-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+    flex-wrap: wrap;
+  }
+  .rr-filter-group { display: flex; gap: 0.3rem; }
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-pill);
+    color: var(--on-surface-variant);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.28rem 0.8rem;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: all 0.12s;
+  }
+  .filter-btn:hover { background: var(--surface-high); color: var(--on-surface); }
+  .filter-btn.active {
+    background: color-mix(in srgb, var(--primary-container) 30%, transparent);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .rr-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .rr-notice {
+    background: color-mix(in srgb, var(--tertiary-container) 40%, transparent);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 1rem;
+    font-size: 0.82rem;
+    color: var(--tertiary);
+    margin-bottom: 1rem;
+    display: none;
+  }
+  .rr-notice.show { display: block; }
+
+  .rr-table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+  .rr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .rr-table thead tr {
+    background: var(--surface-low);
+  }
+  .rr-table th {
+    padding: 0.7rem 0.8rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .rr-table th:first-child { padding-left: 1rem; border-radius: var(--radius-sm) 0 0 0; }
+  .rr-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+
+  .rr-table td {
+    padding: 0.65rem 0.8rem;
+    vertical-align: top;
+    border-top: 1px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  }
+  .rr-table td:first-child { padding-left: 1rem; }
+  .rr-table tbody tr { transition: background 0.1s; }
+  .rr-table tbody tr:hover { background: var(--surface-high); }
+  .rr-table tbody tr.row-closed { opacity: 0.55; }
+
+  .rr-rank {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .rr-sg-id {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--primary);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .rr-sg-title {
+    color: var(--on-surface);
+    font-weight: 500;
+    max-width: 260px;
+    line-height: 1.4;
+  }
+  .rr-sg-ctrl {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+
+  .ig-chips { display: flex; gap: 2px; flex-wrap: nowrap; }
+  .ig-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: var(--radius-sm);
+    font-size: 0.6rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .ig-chip.ig1 { background: color-mix(in srgb, var(--ig1-color) 20%, transparent); color: var(--ig1-color); }
+  .ig-chip.ig2 { background: color-mix(in srgb, var(--ig2-color) 20%, transparent); color: var(--ig2-color); }
+  .ig-chip.ig3 { background: color-mix(in srgb, var(--ig3-color) 20%, transparent); color: var(--ig3-color); }
+  .ig-chip.ig-off { opacity: 0.2; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .s-not_assessed    { background: var(--status-na-bg); color: var(--status-na-color); }
+  .s-not_implemented { background: var(--status-ni-bg); color: var(--status-ni-color); }
+  .s-partial         { background: var(--status-pa-bg); color: var(--status-pa-color); }
+  .s-implemented     { background: var(--status-im-bg); color: var(--status-im-color); }
+  .s-not_applicable  { background: var(--status-np-bg); color: var(--status-np-color); }
+
+  .treatment-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--outline-variant) 40%, transparent);
+    color: var(--text-muted);
+  }
+  .t-accept    { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); }
+  .t-mitigate  { background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); }
+  .t-transfer  { background: color-mix(in srgb, var(--secondary) 18%, transparent); color: var(--secondary); }
+  .t-avoid     { background: color-mix(in srgb, var(--error) 18%, transparent); color: var(--error); }
+  .t-remediate { background: color-mix(in srgb, var(--color-success) 18%, transparent); color: var(--color-success); }
+
+  .rr-select, .rr-input {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--on-surface);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    padding: 0.28rem 0.4rem;
+    width: 100%;
+    outline: none;
+    transition: background 0.12s, border-color 0.12s;
+    min-width: 0;
+  }
+  .rr-select:hover, .rr-input:hover { background: var(--surface-highest); }
+  .rr-select:focus, .rr-input:focus {
+    background: var(--surface-highest);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-tint) 30%, transparent);
+  }
+  .rr-select { cursor: pointer; }
+  .rr-input::placeholder { color: var(--outline); }
+
+  .rr-notes-input {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--on-surface);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    padding: 0.28rem 0.4rem;
+    width: 100%;
+    min-width: 120px;
+    resize: vertical;
+    min-height: 2.4em;
+    outline: none;
+    transition: background 0.12s;
+    line-height: 1.45;
+  }
+  .rr-notes-input:hover { background: var(--surface-highest); }
+  .rr-notes-input:focus {
+    background: var(--surface-highest);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-tint) 30%, transparent);
+  }
+  .rr-notes-input::placeholder { color: var(--outline); }
+
+  .rr-action-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    border: 1px solid var(--outline-variant);
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.12s;
+    white-space: nowrap;
+    font-family: var(--font-body);
+  }
+  .rr-action-btn:hover { border-color: var(--outline); color: var(--on-surface); background: var(--surface-high); }
+  .rr-action-btn.close-btn:hover { border-color: var(--color-success); color: var(--color-success); }
+  .rr-action-btn.reopen-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  .rr-weight {
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
+  .rr-empty {
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+  .rr-empty strong { display: block; color: var(--on-surface); font-size: 1rem; margin-bottom: 0.4rem; }
+
+  .rr-source {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .save-flash {
+    font-size: 0.68rem;
+    color: var(--color-success);
+    opacity: 0;
+    transition: opacity 0.3s;
+    position: absolute;
+    right: 0;
+    top: 0;
+    pointer-events: none;
+  }
+  .save-flash.show { opacity: 1; }
+  .field-cell { position: relative; }
+{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="shell" id="shell">
+  {% include "_sidebar.html" %}
+
+  <main class="rr-main">
+
+    <div class="rr-header">
+      <div>
+        <div class="rr-eyebrow">{{ project.name }}</div>
+        <h1 class="rr-title">Risk Register</h1>
+      </div>
+      <div class="rr-header-actions">
+        {% if user_role in ('admin', 'editor') %}
+        <div class="rr-import-form">
+          <select id="importAsmSelect">
+            <option value="">Select assessment…</option>
+            {% for asm in assessments %}
+            <option value="{{ asm.id }}">{{ asm.name }} ({{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm.lifecycle, asm.lifecycle) }})</option>
+            {% endfor %}
+          </select>
+          <button class="btn-rr btn-rr-primary" id="importBtn" onclick="importGaps()" disabled>Import Gaps</button>
+        </div>
+        {% endif %}
+        <a class="btn-rr btn-rr-secondary" href="{{ url_for('api_risk_export', project_id=project.id) }}">&#8659; Export CSV</a>
+      </div>
+    </div>
+
+    <div class="rr-notice" id="rrNotice"></div>
+
+    <div class="rr-toolbar">
+      <div class="rr-filter-group">
+        <button class="filter-btn active" onclick="applyFilter('open')">Open</button>
+        <button class="filter-btn" onclick="applyFilter('closed')">Closed</button>
+        <button class="filter-btn" onclick="applyFilter('all')">All</button>
+      </div>
+      <span class="rr-count" id="rrCount"></span>
+    </div>
+
+    {% if items %}
+    <div class="rr-table-wrap">
+      <table class="rr-table" id="rrTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Safeguard</th>
+            <th>Title / Control</th>
+            <th>IG</th>
+            <th>Status</th>
+            <th>Treatment</th>
+            <th>Owner</th>
+            <th>Target Date</th>
+            <th>Notes</th>
+            <th style="text-align:right">Weight</th>
+            {% if user_role in ('admin', 'editor') %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr data-item-status="{{ item.status }}" data-item-id="{{ item.id }}" class="{{ 'row-closed' if item.status == 'closed' else '' }}">
+            <td class="rr-rank">{{ item.rank }}</td>
+            <td class="rr-sg-id">{{ item.display_id }}</td>
+            <td>
+              <div class="rr-sg-title">{{ item.title }}</div>
+              <div class="rr-sg-ctrl">C{{ '%02d'|format(item.control_id) }} {{ item.control_title }}</div>
+              {% if item.source_assessment_name %}
+              <div class="rr-source">from {{ item.source_assessment_name }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="ig-chips">
+                <span class="ig-chip ig1 {{ '' if item.ig1 else 'ig-off' }}">1</span>
+                <span class="ig-chip ig2 {{ '' if item.ig2 else 'ig-off' }}">2</span>
+                <span class="ig-chip ig3 {{ '' if item.ig3 else 'ig-off' }}">3</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge s-{{ item.current_status }}">
+                {{ {'not_assessed':'Not Assessed','not_implemented':'Not Impl.','partial':'Partial','implemented':'Implemented','not_applicable':'N/A'}.get(item.current_status, item.current_status) }}
+              </span>
+            </td>
+            <td class="field-cell" style="min-width:110px">
+              {% if user_role in ('admin', 'editor') %}
+              <select class="rr-select" onchange="saveField({{ item.id }}, 'treatment', this.value)">
+                <option value="" {{ 'selected' if not item.treatment }}>(unassigned)</option>
+                <option value="accept"    {{ 'selected' if item.treatment == 'accept' }}>Accept</option>
+                <option value="mitigate"  {{ 'selected' if item.treatment == 'mitigate' }}>Mitigate</option>
+                <option value="transfer"  {{ 'selected' if item.treatment == 'transfer' }}>Transfer</option>
+                <option value="avoid"     {{ 'selected' if item.treatment == 'avoid' }}>Avoid</option>
+                <option value="remediate" {{ 'selected' if item.treatment == 'remediate' }}>Remediate</option>
+              </select>
+              {% else %}
+              {% if item.treatment %}
+              <span class="treatment-badge t-{{ item.treatment }}">{{ item.treatment|capitalize }}</span>
+              {% else %}
+              <span class="treatment-badge">—</span>
+              {% endif %}
+              {% endif %}
+            </td>
+            <td class="field-cell" style="min-width:100px">
+              {% if user_role in ('admin', 'editor') %}
+              <input class="rr-input" type="text" value="{{ item.owner }}" placeholder="Owner…"
+                     onblur="saveField({{ item.id }}, 'owner', this.value)">
+              {% else %}
+              <span style="color:var(--on-surface-variant);font-size:0.8rem">{{ item.owner or '—' }}</span>
+              {% endif %}
+            </td>
+            <td class="field-cell" style="min-width:110px">
+              {% if user_role in ('admin', 'editor') %}
+              <input class="rr-input" type="date" value="{{ item.target_date }}"
+                     onchange="saveField({{ item.id }}, 'target_date', this.value)">
+              {% else %}
+              <span style="color:var(--on-surface-variant);font-size:0.8rem">{{ item.target_date or '—' }}</span>
+              {% endif %}
+            </td>
+            <td class="field-cell" style="min-width:150px">
+              {% if user_role in ('admin', 'editor') %}
+              <textarea class="rr-notes-input" rows="2" placeholder="Notes…"
+                        onblur="saveField({{ item.id }}, 'notes', this.value)">{{ item.notes }}</textarea>
+              {% else %}
+              <span style="color:var(--on-surface-variant);font-size:0.78rem;white-space:pre-wrap">{{ item.notes or '—' }}</span>
+              {% endif %}
+            </td>
+            <td class="rr-weight">{{ item.weight | int if item.weight == item.weight | int else item.weight }}</td>
+            {% if user_role in ('admin', 'editor') %}
+            <td style="white-space:nowrap">
+              {% if item.status == 'open' %}
+              <button class="rr-action-btn close-btn" onclick="closeItem({{ item.id }}, this)">&#10003; Close</button>
+              {% else %}
+              <button class="rr-action-btn reopen-btn" onclick="reopenItem({{ item.id }}, this)">&#8635; Reopen</button>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rr-empty">
+      <strong>No risk items yet</strong>
+      {% if user_role in ('admin', 'editor') %}
+      Select an assessment above and click <em>Import Gaps</em> to populate the register from not-implemented and partial safeguards.
+      {% else %}
+      No risks have been imported for this project yet.
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% include "_sidebar_script.html" %}
+<script>
+const PROJECT_ID = {{ project.id }};
+const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+const CAN_EDIT = {{ 'true' if user_role in ('admin', 'editor') else 'false' }};
+
+function apiHeaders() {
+  return { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF };
+}
+
+// --- Filter ---
+let currentFilter = 'open';
+
+function applyFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase() === f || (f === 'all' && btn.textContent === 'All'));
+  });
+  const rows = document.querySelectorAll('#rrTable tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const status = row.dataset.itemStatus;
+    const show = f === 'all' || status === f;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const countEl = document.getElementById('rrCount');
+  if (countEl) countEl.textContent = visible + ' item' + (visible === 1 ? '' : 's');
+}
+
+// --- Import ---
+{% if user_role in ('admin', 'editor') %}
+const importSelect = document.getElementById('importAsmSelect');
+const importBtn = document.getElementById('importBtn');
+if (importSelect) {
+  importSelect.addEventListener('change', () => {
+    importBtn.disabled = !importSelect.value;
+  });
+}
+
+async function importGaps() {
+  const asmId = importSelect.value;
+  if (!asmId) return;
+  importBtn.disabled = true;
+  importBtn.textContent = 'Importing…';
+  try {
+    const res = await fetch('/api/projects/' + PROJECT_ID + '/risk-register/import', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ assessment_id: parseInt(asmId) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed');
+    showNotice(data.imported + ' new item' + (data.imported === 1 ? '' : 's') + ' imported (' + data.total_gaps + ' gaps found in assessment). Page will reload.');
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    showNotice('Error: ' + e.message, true);
+    importBtn.disabled = false;
+    importBtn.textContent = 'Import Gaps';
+  }
+}
+{% endif %}
+
+// --- Save field ---
+async function saveField(itemId, field, value) {
+  try {
+    const res = await fetch('/api/projects/' + PROJECT_ID + '/risk-items/' + itemId, {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error('Save failed');
+  } catch (e) {
+    console.error('saveField error:', e);
+  }
+}
+
+// --- Close / Reopen ---
+async function closeItem(itemId, btn) {
+  try {
+    const res = await fetch('/api/projects/' + PROJECT_ID + '/risk-items/' + itemId + '/close', {
+      method: 'POST', headers: apiHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    const row = btn.closest('tr');
+    row.dataset.itemStatus = 'closed';
+    row.classList.add('row-closed');
+    btn.className = 'rr-action-btn reopen-btn';
+    btn.innerHTML = '&#8635; Reopen';
+    btn.onclick = () => reopenItem(itemId, btn);
+    applyFilter(currentFilter);
+  } catch (e) { console.error(e); }
+}
+
+async function reopenItem(itemId, btn) {
+  try {
+    const res = await fetch('/api/projects/' + PROJECT_ID + '/risk-items/' + itemId + '/reopen', {
+      method: 'POST', headers: apiHeaders(),
+    });
+    if (!res.ok) throw new Error();
+    const row = btn.closest('tr');
+    row.dataset.itemStatus = 'open';
+    row.classList.remove('row-closed');
+    btn.className = 'rr-action-btn close-btn';
+    btn.innerHTML = '&#10003; Close';
+    btn.onclick = () => closeItem(itemId, btn);
+    applyFilter(currentFilter);
+  } catch (e) { console.error(e); }
+}
+
+// --- Notice ---
+function showNotice(msg, isError) {
+  const el = document.getElementById('rrNotice');
+  el.textContent = msg;
+  el.style.background = isError
+    ? 'color-mix(in srgb, var(--error-container) 60%, transparent)'
+    : 'color-mix(in srgb, var(--tertiary-container) 40%, transparent)';
+  el.style.color = isError ? 'var(--error)' : 'var(--tertiary)';
+  el.classList.add('show');
+}
+
+// Init
+applyFilter('open');
+</script>
+{% endblock %}

@@ -43,6 +43,16 @@ VALID_STATUSES = {"not_assessed", "not_implemented", "partial", "implemented", "
 with open(DATA_PATH) as f:
     CIS_DATA = json.load(f)
 
+# Flat lookup: safeguard_id → {control_id, control_title, ig1, ig2, ig3, title, function, asset_class}
+_SG_INDEX = {}
+for _ctrl in CIS_DATA["controls"]:
+    for _sg in _ctrl["safeguards"]:
+        _SG_INDEX[_sg["id"]] = {
+            "control_id": _ctrl["id"],
+            "control_title": _ctrl["title"],
+            **{k: _sg[k] for k in ("title", "function", "asset_class", "ig1", "ig2", "ig3")},
+        }
+
 # Pre-computed dummy hash used in login to prevent email-enumeration via timing.
 _DUMMY_HASH = generate_password_hash("__timing_guard__")
 
@@ -357,6 +367,35 @@ def init_db():
             conn.execute("PRAGMA foreign_keys = ON")
             conn.execute(
                 "INSERT INTO schema_migrations (version, applied_at) VALUES ('0003', ?)",
+                (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
+            )
+            conn.commit()
+
+        # -------------------------------------------------------------------
+        # Migration 0004 — risk_items table for project-level risk register.
+        # -------------------------------------------------------------------
+        if not conn.execute("SELECT 1 FROM schema_migrations WHERE version='0004'").fetchone():
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS risk_items (
+                    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id           INTEGER NOT NULL REFERENCES projects(id),
+                    safeguard_id         TEXT NOT NULL,
+                    treatment            TEXT CHECK(treatment IN
+                                             ('accept','mitigate','transfer','avoid','remediate')),
+                    owner                TEXT,
+                    target_date          TEXT,
+                    notes                TEXT,
+                    source_assessment_id INTEGER REFERENCES assessments(id),
+                    status               TEXT NOT NULL DEFAULT 'open'
+                                             CHECK(status IN ('open','closed')),
+                    created_at           TEXT NOT NULL,
+                    updated_at           TEXT,
+                    updated_by           INTEGER REFERENCES users(id),
+                    UNIQUE(project_id, safeguard_id)
+                )
+            """)
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES ('0004', ?)",
                 (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
             )
             conn.commit()
@@ -1145,6 +1184,277 @@ def api_export_csv(asm_id):
         buf.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename=\"{safe_name}.csv\""},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Risk Register
+# ---------------------------------------------------------------------------
+
+def _sg_display_id(sg_id):
+    parts = sg_id.split(".")
+    return f"C{int(parts[0]):02d}-{int(parts[1]):02d}"
+
+
+def _compute_risk_weight(sg_id, status):
+    sg = _SG_INDEX.get(sg_id, {})
+    raw = sg.get("ig1", False) * 3 + sg.get("ig2", False) * 2 + sg.get("ig3", False) * 1
+    return raw / 2 if status == "partial" else raw
+
+
+def _build_risk_rows(project_id):
+    """Return risk_items for a project, enriched with CIS metadata, sorted by weight desc."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT ri.id, ri.safeguard_id, ri.treatment, ri.owner, ri.target_date, "
+            "       ri.notes, ri.status, ri.source_assessment_id, ri.created_at, "
+            "       ri.updated_at, a.name AS source_assessment_name, "
+            "       asg.status AS current_status "
+            "FROM risk_items ri "
+            "LEFT JOIN assessments a ON a.id = ri.source_assessment_id "
+            "LEFT JOIN assessment_safeguards asg "
+            "       ON asg.assessment_id = ri.source_assessment_id "
+            "       AND asg.safeguard_id = ri.safeguard_id "
+            "WHERE ri.project_id = ? "
+            "ORDER BY ri.created_at",
+            (project_id,),
+        ).fetchall()
+
+    result = []
+    for r in rows:
+        sg_id = r["safeguard_id"]
+        sg = _SG_INDEX.get(sg_id, {})
+        current_status = r["current_status"] or "not_assessed"
+        weight = _compute_risk_weight(sg_id, current_status)
+        result.append({
+            "id": r["id"],
+            "safeguard_id": sg_id,
+            "display_id": _sg_display_id(sg_id),
+            "title": sg.get("title", ""),
+            "control_id": sg.get("control_id", 0),
+            "control_title": sg.get("control_title", ""),
+            "function": sg.get("function", ""),
+            "ig1": sg.get("ig1", False),
+            "ig2": sg.get("ig2", False),
+            "ig3": sg.get("ig3", False),
+            "current_status": current_status,
+            "treatment": r["treatment"],
+            "owner": r["owner"] or "",
+            "target_date": r["target_date"] or "",
+            "notes": r["notes"] or "",
+            "status": r["status"],
+            "source_assessment_id": r["source_assessment_id"],
+            "source_assessment_name": r["source_assessment_name"] or "",
+            "weight": weight,
+        })
+
+    result.sort(key=lambda x: (-x["weight"], x["safeguard_id"]))
+    for i, item in enumerate(result, 1):
+        item["rank"] = i
+    return result
+
+
+@app.route("/projects/<int:project_id>/risk-register")
+@login_required
+def risk_register(project_id):
+    role = _user_role_for_project(project_id)
+    if not role:
+        abort(403)
+    with get_db() as conn:
+        project = conn.execute(
+            "SELECT id, name FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            abort(404)
+        assessments = conn.execute(
+            "SELECT id, name, lifecycle FROM assessments WHERE project_id = ? ORDER BY created_at DESC",
+            (project_id,),
+        ).fetchall()
+
+    projects = _load_sidebar_projects()
+    items = _build_risk_rows(project_id)
+    return render_template(
+        "risk_register.html",
+        project=dict(project),
+        assessments=[dict(a) for a in assessments],
+        items=items,
+        user_role=role,
+        projects=projects,
+        active_assessment=None,
+        active_project_id=project_id,
+    )
+
+
+@app.route("/api/projects/<int:project_id>/risk-register/import", methods=["POST"])
+@login_required
+def api_risk_import(project_id):
+    role = _user_role_for_project(project_id)
+    if role not in ("admin", "editor"):
+        abort(403)
+    _validate_csrf_api()
+
+    payload = request.get_json(silent=True) or {}
+    asm_id = payload.get("assessment_id")
+    if not asm_id:
+        return jsonify({"error": "assessment_id required"}), 400
+
+    with get_db() as conn:
+        asm = conn.execute(
+            "SELECT id FROM assessments WHERE id = ? AND project_id = ?",
+            (asm_id, project_id),
+        ).fetchone()
+        if not asm:
+            return jsonify({"error": "Assessment not found"}), 404
+
+        gaps = conn.execute(
+            "SELECT safeguard_id FROM assessment_safeguards "
+            "WHERE assessment_id = ? AND status IN ('not_implemented', 'partial')",
+            (asm_id,),
+        ).fetchall()
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    imported = 0
+    with get_db() as conn:
+        for row in gaps:
+            result = conn.execute(
+                "INSERT OR IGNORE INTO risk_items "
+                "(project_id, safeguard_id, source_assessment_id, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (project_id, row["safeguard_id"], asm_id, now),
+            )
+            if result.rowcount:
+                imported += 1
+        conn.commit()
+
+    return jsonify({"imported": imported, "total_gaps": len(gaps)})
+
+
+@app.route("/api/projects/<int:project_id>/risk-items/<int:item_id>", methods=["POST"])
+@login_required
+def api_risk_item_update(project_id, item_id):
+    role = _user_role_for_project(project_id)
+    if role not in ("admin", "editor"):
+        abort(403)
+    _validate_csrf_api()
+
+    with get_db() as conn:
+        item = conn.execute(
+            "SELECT id FROM risk_items WHERE id = ? AND project_id = ?",
+            (item_id, project_id),
+        ).fetchone()
+        if not item:
+            abort(404)
+
+    payload = request.get_json(silent=True) or {}
+    allowed = {"treatment", "owner", "target_date", "notes"}
+    updates = {k: v for k, v in payload.items() if k in allowed}
+
+    valid_treatments = {"accept", "mitigate", "transfer", "avoid", "remediate", None, ""}
+    if "treatment" in updates and updates["treatment"] not in valid_treatments:
+        return jsonify({"error": "Invalid treatment"}), 400
+    if updates.get("treatment") == "":
+        updates["treatment"] = None
+
+    if not updates:
+        return jsonify({"ok": True})
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [now, session["user_id"], item_id, project_id]
+    with get_db() as conn:
+        conn.execute(
+            f"UPDATE risk_items SET {set_clause}, updated_at = ?, updated_by = ? "
+            "WHERE id = ? AND project_id = ?",
+            values,
+        )
+        conn.commit()
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:project_id>/risk-items/<int:item_id>/close", methods=["POST"])
+@login_required
+def api_risk_item_close(project_id, item_id):
+    role = _user_role_for_project(project_id)
+    if role not in ("admin", "editor"):
+        abort(403)
+    _validate_csrf_api()
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE risk_items SET status = 'closed', updated_at = ?, updated_by = ? "
+            "WHERE id = ? AND project_id = ?",
+            (now, session["user_id"], item_id, project_id),
+        )
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:project_id>/risk-items/<int:item_id>/reopen", methods=["POST"])
+@login_required
+def api_risk_item_reopen(project_id, item_id):
+    role = _user_role_for_project(project_id)
+    if role not in ("admin", "editor"):
+        abort(403)
+    _validate_csrf_api()
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE risk_items SET status = 'open', updated_at = ?, updated_by = ? "
+            "WHERE id = ? AND project_id = ?",
+            (now, session["user_id"], item_id, project_id),
+        )
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:project_id>/risk-register/export")
+@login_required
+def api_risk_export(project_id):
+    role = _user_role_for_project(project_id)
+    if not role:
+        abort(403)
+    with get_db() as conn:
+        project = conn.execute(
+            "SELECT name FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            abort(404)
+
+    items = _build_risk_rows(project_id)
+
+    import csv, io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "Rank", "Safeguard", "Title", "Control", "Function",
+        "IG1", "IG2", "IG3", "Current Status", "Treatment",
+        "Owner", "Target Date", "Notes", "Register Status", "Risk Weight",
+    ])
+    for item in items:
+        w.writerow([
+            item["rank"],
+            item["display_id"],
+            item["title"],
+            f"C{item['control_id']:02d} {item['control_title']}",
+            item["function"],
+            "Y" if item["ig1"] else "",
+            "Y" if item["ig2"] else "",
+            "Y" if item["ig3"] else "",
+            item["current_status"],
+            item["treatment"] or "",
+            item["owner"],
+            item["target_date"],
+            item["notes"],
+            item["status"],
+            item["weight"],
+        ])
+
+    safe_name = re.sub(r"[^\w\-]", "_", project["name"])[:80] or "project"
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=\"{safe_name}_risk_register.csv\""},
     )
 
 
