@@ -785,6 +785,10 @@ def delete_assessment(project_id, asm_id):
             abort(400)
         for table in ("audit_log", "attachments", "notes", "assessment_safeguards"):
             conn.execute(f"DELETE FROM {table} WHERE assessment_id = ?", (asm_id,))
+        conn.execute(
+            "UPDATE risk_items SET source_assessment_id = NULL WHERE source_assessment_id = ?",
+            (asm_id,),
+        )
         conn.execute("DELETE FROM assessments WHERE id = ?", (asm_id,))
         conn.commit()
     return redirect(url_for("index"))
@@ -835,6 +839,10 @@ def delete_project(project_id):
         for asm_id in asm_ids:
             for table in ("audit_log", "attachments", "notes", "assessment_safeguards"):
                 conn.execute(f"DELETE FROM {table} WHERE assessment_id = ?", (asm_id,))
+            conn.execute(
+                "UPDATE risk_items SET source_assessment_id = NULL WHERE source_assessment_id = ?",
+                (asm_id,),
+            )
             conn.execute("DELETE FROM assessments WHERE id = ?", (asm_id,))
         conn.execute("DELETE FROM user_projects WHERE project_id = ?", (project_id,))
         conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
