@@ -1254,6 +1254,76 @@ def _build_risk_rows(project_id):
     return result
 
 
+def _compute_control_scores(asm_id):
+    """Return {control_id (int): float 0-1} per CIS control for one assessment."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT safeguard_id, status FROM assessment_safeguards WHERE assessment_id = ?",
+            (asm_id,),
+        ).fetchall()
+    by_sg = {r["safeguard_id"]: r["status"] for r in rows}
+    scores = {}
+    for ctrl in CIS_DATA["controls"]:
+        total = 0
+        scored = 0.0
+        for sg in ctrl["safeguards"]:
+            status = by_sg.get(sg["id"], "not_assessed")
+            if status == "not_applicable":
+                continue
+            total += 1
+            if status == "implemented":
+                scored += 1.0
+            elif status == "partial":
+                scored += 0.5
+        scores[ctrl["id"]] = round(scored / total, 4) if total > 0 else 0.0
+    return scores
+
+
+@app.route("/projects/<int:project_id>/compare")
+@login_required
+def compare_assessments(project_id):
+    role = _user_role_for_project(project_id)
+    if not role:
+        abort(403)
+    with get_db() as conn:
+        project = conn.execute(
+            "SELECT id, name FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            abort(404)
+        assessments = conn.execute(
+            "SELECT id, name, lifecycle FROM assessments WHERE project_id = ? ORDER BY created_at DESC",
+            (project_id,),
+        ).fetchall()
+
+    assessments = [dict(a) for a in assessments]
+    asm_id_a = request.args.get("a", type=int)
+    asm_id_b = request.args.get("b", type=int)
+
+    asm_a = asm_b = scores_a = scores_b = None
+    if asm_id_a and asm_id_b and asm_id_a != asm_id_b:
+        asm_a = next((a for a in assessments if a["id"] == asm_id_a), None)
+        asm_b = next((a for a in assessments if a["id"] == asm_id_b), None)
+        if asm_a and asm_b:
+            scores_a = _compute_control_scores(asm_id_a)
+            scores_b = _compute_control_scores(asm_id_b)
+
+    projects = _load_sidebar_projects()
+    return render_template(
+        "compare.html",
+        project=dict(project),
+        assessments=assessments,
+        asm_a=asm_a,
+        asm_b=asm_b,
+        scores_a=scores_a,
+        scores_b=scores_b,
+        controls=CIS_DATA["controls"],
+        projects=projects,
+        active_assessment=None,
+        active_project_id=project_id,
+    )
+
+
 @app.route("/projects/<int:project_id>/risk-register")
 @login_required
 def risk_register(project_id):

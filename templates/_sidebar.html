@@ -32,6 +32,12 @@
           &#9632; Risk Register
         </a>
 
+        <a class="asm-link"
+           href="{{ url_for('compare_assessments', project_id=project.id) }}"
+           data-active="{{ 'true' if (active_project_id | default(None)) == project.id and request.endpoint == 'compare_assessments' else 'false' }}">
+          &#9651; Compare
+        </a>
+
         {% if current_user and current_user.role == 'admin' %}
           <button class="new-asm-toggle"
                   type="button"

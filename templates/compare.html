@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+
+{% block title %}Compare — {{ project.name }} — LibreVigilant{% endblock %}
+
+{% block extra_styles %}
+  :root, [data-theme="dark"] {
+    --ig1-color: #A5B4FC; --ig2-color: #93C5FD; --ig3-color: #C4B5FD;
+    --radar-a: #C0C1FF; --radar-b: #4EDEA3;
+  }
+  [data-theme="light"] {
+    --ig1-color: #4338CA; --ig2-color: #1D4ED8; --ig3-color: #6D28D9;
+    --radar-a: #494BD6; --radar-b: #007650;
+  }
+
+  .cmp-main { padding: 1.75rem 2rem 3rem; overflow-y: auto; }
+
+  .cmp-header { margin-bottom: 1.5rem; }
+  .cmp-eyebrow {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--primary); margin-bottom: 0.4rem;
+  }
+  .cmp-title {
+    font-family: var(--font-display); font-size: 1.7rem; font-weight: 800;
+    letter-spacing: -0.02em; color: var(--on-surface);
+  }
+
+  /* Selector bar */
+  .cmp-selector {
+    display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md); padding: 1rem 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .cmp-sel-wrap { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 180px; }
+  .cmp-sel-wrap label {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted);
+  }
+  .cmp-sel-wrap select {
+    background: var(--surface-high); border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm); padding: 0.5rem 0.7rem;
+    font-family: var(--font-body); font-size: 0.85rem; color: var(--on-surface);
+    outline: none; cursor: pointer;
+  }
+  .cmp-sel-wrap select:focus { border-color: var(--surface-tint); }
+  .cmp-vs {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted); padding-bottom: 0.6rem;
+    flex-shrink: 0;
+  }
+  .btn-compare {
+    padding: 0.5rem 1.2rem; background: var(--primary-container);
+    color: var(--on-primary-container); border: none; border-radius: var(--radius-sm);
+    font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+    letter-spacing: 0.02em; cursor: pointer; transition: opacity 0.15s;
+    flex-shrink: 0; align-self: flex-end;
+  }
+  .btn-compare:hover { opacity: 0.85; }
+
+  /* Empty state */
+  .cmp-empty {
+    text-align: center; padding: 4rem 2rem; color: var(--text-muted);
+    border: 1px dashed var(--outline-variant); border-radius: var(--radius-md);
+  }
+  .cmp-empty p { font-size: 0.9rem; margin-top: 0.5rem; }
+
+  /* Two-column layout: radar left, legend right */
+  .cmp-grid {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    margin-bottom: 1.75rem;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .cmp-grid { grid-template-columns: 1fr; }
+  }
+
+  .radar-panel {
+    background: var(--surface); border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md); padding: 1.25rem;
+  }
+  .radar-panel h3 {
+    font-family: var(--font-display); font-size: 0.95rem; font-weight: 700;
+    color: var(--on-surface); margin-bottom: 0.9rem;
+  }
+  .radar-wrap svg { width: 100%; height: auto; }
+
+  .radar-grid  { fill: none; stroke: var(--outline-variant); stroke-width: 0.8; }
+  .radar-axis  { stroke: var(--outline-variant); stroke-width: 0.5; }
+  .radar-poly-a {
+    fill: color-mix(in srgb, var(--radar-a) 18%, transparent);
+    stroke: var(--radar-a); stroke-width: 1.5;
+  }
+  .radar-poly-b {
+    fill: color-mix(in srgb, var(--radar-b) 18%, transparent);
+    stroke: var(--radar-b); stroke-width: 1.5;
+  }
+  .radar-dot-a { fill: var(--radar-a); }
+  .radar-dot-b { fill: var(--radar-b); }
+  .radar-label {
+    font-family: var(--font-body); font-size: 10px;
+    fill: var(--on-surface-variant);
+  }
+  .radar-ring-label {
+    font-family: var(--font-body); font-size: 8px;
+    fill: var(--outline); dominant-baseline: central;
+  }
+
+  /* Legend + summary panel */
+  .legend-panel {
+    background: var(--surface); border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md); padding: 1.25rem;
+  }
+  .legend-panel h3 {
+    font-family: var(--font-display); font-size: 0.95rem; font-weight: 700;
+    color: var(--on-surface); margin-bottom: 1rem;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 0.65rem;
+    margin-bottom: 0.85rem;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+  }
+  .legend-swatch-a { background: var(--radar-a); }
+  .legend-swatch-b { background: var(--radar-b); }
+  .legend-name {
+    font-size: 0.8rem; font-weight: 600; color: var(--on-surface);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .legend-lifecycle {
+    display: inline-flex; align-items: center;
+    padding: 1px 6px; border-radius: var(--radius-pill);
+    font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; border: 1px solid transparent; margin-top: 2px;
+  }
+  .legend-lifecycle[data-lc="draft"] {
+    background: color-mix(in srgb, var(--outline) 15%, transparent);
+    color: var(--text-muted);
+    border-color: color-mix(in srgb, var(--outline) 30%, transparent);
+  }
+  .legend-lifecycle[data-lc="review"] {
+    background: color-mix(in srgb, var(--tertiary) 18%, transparent);
+    color: var(--tertiary);
+    border-color: color-mix(in srgb, var(--tertiary) 40%, transparent);
+  }
+  .legend-lifecycle[data-lc="completed"] {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  .legend-divider { height: 1px; background: var(--outline-variant); margin: 1rem 0; }
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.82rem; padding: 0.25rem 0;
+  }
+  .summary-label { color: var(--text-muted); }
+  .summary-val { font-weight: 600; color: var(--on-surface); }
+
+  /* Delta table */
+  .delta-panel {
+    background: var(--surface); border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md); overflow: hidden;
+  }
+  .delta-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--outline-variant);
+  }
+  .delta-panel-head h3 {
+    font-family: var(--font-display); font-size: 0.95rem; font-weight: 700;
+    color: var(--on-surface);
+  }
+  .delta-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+  .delta-table { width: 100%; border-collapse: collapse; }
+  .delta-table th {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted);
+    padding: 0.6rem 1rem; text-align: left; border-bottom: 1px solid var(--outline-variant);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .delta-table th:hover { color: var(--on-surface); }
+  .delta-table th.sort-asc::after  { content: ' ↑'; opacity: 0.6; }
+  .delta-table th.sort-desc::after { content: ' ↓'; opacity: 0.6; }
+  .delta-table td {
+    padding: 0.6rem 1rem; font-size: 0.82rem; color: var(--on-surface);
+    border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 50%, transparent);
+  }
+  .delta-table tr:last-child td { border-bottom: none; }
+  .delta-table tr:hover td { background: var(--surface-high); }
+  .delta-table td.ctrl-id {
+    font-family: monospace; font-size: 0.75rem; color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .delta-table td.ctrl-name { color: var(--on-surface-variant); max-width: 220px; }
+  .delta-table td.score { font-weight: 600; text-align: right; white-space: nowrap; }
+  .delta-table td.score-a { color: var(--radar-a); }
+  .delta-table td.score-b { color: var(--radar-b); }
+  .delta-table td.delta { font-weight: 700; text-align: right; white-space: nowrap; }
+  .delta-pos { color: var(--color-success); }
+  .delta-neg { color: var(--color-danger); }
+  .delta-zero { color: var(--text-muted); }
+{% endblock %}
+
+{% block content %}
+<div class="shell" id="shell">
+  {% include "_sidebar.html" %}
+
+  <main class="cmp-main" id="mainContent">
+    <div class="main-inner">
+
+      <div class="cmp-header">
+        <p class="cmp-eyebrow">{{ project.name }}</p>
+        <h1 class="cmp-title">Compare Assessments</h1>
+      </div>
+
+      <!-- Selector -->
+      <form class="cmp-selector" method="GET">
+        <div class="cmp-sel-wrap">
+          <label for="sel-a">Assessment A</label>
+          <select id="sel-a" name="a">
+            <option value="">— select —</option>
+            {% for a in assessments %}
+              <option value="{{ a.id }}" {% if asm_a and asm_a.id == a.id %}selected{% endif %}>
+                {{ a.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <span class="cmp-vs">vs</span>
+        <div class="cmp-sel-wrap">
+          <label for="sel-b">Assessment B</label>
+          <select id="sel-b" name="b">
+            <option value="">— select —</option>
+            {% for a in assessments %}
+              <option value="{{ a.id }}" {% if asm_b and asm_b.id == a.id %}selected{% endif %}>
+                {{ a.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn-compare">Compare</button>
+      </form>
+
+      {% if scores_a and scores_b %}
+
+      {# Pre-compute per-control rows for template use #}
+      {% set rows = [] %}
+      {% for ctrl in controls %}
+        {% set sa = scores_a[ctrl.id] %}
+        {% set sb = scores_b[ctrl.id] %}
+        {% set delta = sb - sa %}
+        {% set _ = rows.append({'id': ctrl.id, 'title': ctrl.title, 'sa': sa, 'sb': sb, 'delta': delta}) %}
+      {% endfor %}
+
+      {# Overall averages #}
+      {% set total_a = namespace(v=0) %}
+      {% set total_b = namespace(v=0) %}
+      {% for r in rows %}
+        {% set total_a.v = total_a.v + r.sa %}
+        {% set total_b.v = total_b.v + r.sb %}
+      {% endfor %}
+      {% set avg_a = total_a.v / rows|length %}
+      {% set avg_b = total_b.v / rows|length %}
+
+      <!-- Radar + Legend -->
+      <div class="cmp-grid">
+        <div class="radar-panel">
+          <h3>Control Coverage Radar</h3>
+          <div class="radar-wrap">
+            <svg id="cmpRadar" viewBox="-80 -10 660 520"></svg>
+          </div>
+        </div>
+
+        <div class="legend-panel">
+          <h3>Legend</h3>
+          <div class="legend-item">
+            <div class="legend-swatch legend-swatch-a"></div>
+            <div>
+              <div class="legend-name" title="{{ asm_a.name }}">A — {{ asm_a.name }}</div>
+              <span class="legend-lifecycle" data-lc="{{ asm_a.lifecycle }}">
+                {{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm_a.lifecycle, asm_a.lifecycle) }}
+              </span>
+            </div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch legend-swatch-b"></div>
+            <div>
+              <div class="legend-name" title="{{ asm_b.name }}">B — {{ asm_b.name }}</div>
+              <span class="legend-lifecycle" data-lc="{{ asm_b.lifecycle }}">
+                {{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm_b.lifecycle, asm_b.lifecycle) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="legend-divider"></div>
+
+          <div class="summary-row">
+            <span class="summary-label">Overall A</span>
+            <span class="summary-val">{{ "%.0f"|format(avg_a * 100) }}%</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Overall B</span>
+            <span class="summary-val">{{ "%.0f"|format(avg_b * 100) }}%</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Net change</span>
+            <span class="summary-val {% if avg_b > avg_a %}delta-pos{% elif avg_b < avg_a %}delta-neg{% else %}delta-zero{% endif %}">
+              {% set net = (avg_b - avg_a) * 100 %}
+              {% if net > 0 %}+{% endif %}{{ "%.0f"|format(net) }}pp
+            </span>
+          </div>
+
+          <div class="legend-divider"></div>
+
+          {% set improved = rows | selectattr('delta', 'gt', 0.005) | list %}
+          {% set declined = rows | selectattr('delta', 'lt', -0.005) | list %}
+          {% set unchanged = rows | rejectattr('delta', 'gt', 0.005) | rejectattr('delta', 'lt', -0.005) | list %}
+          <div class="summary-row">
+            <span class="summary-label">Improved</span>
+            <span class="summary-val delta-pos">{{ improved | length }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Declined</span>
+            <span class="summary-val delta-neg">{{ declined | length }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Unchanged</span>
+            <span class="summary-val delta-zero">{{ unchanged | length }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delta table -->
+      <div class="delta-panel">
+        <div class="delta-panel-head">
+          <h3>Control Breakdown</h3>
+          <span class="delta-hint">Click a column header to sort</span>
+        </div>
+        <table class="delta-table" id="deltaTable">
+          <thead>
+            <tr>
+              <th data-col="id">Control</th>
+              <th data-col="name">Name</th>
+              <th data-col="sa" style="text-align:right">A %</th>
+              <th data-col="sb" style="text-align:right">B %</th>
+              <th data-col="delta" style="text-align:right">Δ</th>
+            </tr>
+          </thead>
+          <tbody id="deltaBody">
+            {% for r in rows %}
+            <tr data-id="{{ r.id }}"
+                data-sa="{{ r.sa }}"
+                data-sb="{{ r.sb }}"
+                data-delta="{{ r.delta }}">
+              <td class="ctrl-id">C{{ "%02d"|format(r.id) }}</td>
+              <td class="ctrl-name">{{ r.title }}</td>
+              <td class="score score-a">{{ "%.0f"|format(r.sa * 100) }}%</td>
+              <td class="score score-b">{{ "%.0f"|format(r.sb * 100) }}%</td>
+              <td class="delta {% if r.delta > 0.005 %}delta-pos{% elif r.delta < -0.005 %}delta-neg{% else %}delta-zero{% endif %}">
+                {% set dp = r.delta * 100 %}
+                {% if r.delta > 0.005 %}▲ +{{ "%.0f"|format(dp) }}pp
+                {% elif r.delta < -0.005 %}▼ {{ "%.0f"|format(dp) }}pp
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% else %}
+      <div class="cmp-empty">
+        <div style="font-size:2rem; opacity:0.4;">△</div>
+        <p>Select two different assessments above and click <strong>Compare</strong>.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </main>
+</div>
+
+{% include "_sidebar_script.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if scores_a and scores_b %}
+<script>
+(function() {
+  // Radar data from server
+  const SCORES_A = {{ scores_a | tojson }};
+  const SCORES_B = {{ scores_b | tojson }};
+  const LABELS   = {{ controls | map(attribute='id') | list | tojson }};
+  const CTRL_NAMES = {{ controls | map(attribute='title') | list | tojson }};
+
+  // Map control id → formatted label e.g. "C01"
+  function ctrlLabel(id) { return 'C' + String(id).padStart(2, '0'); }
+
+  function buildRadar() {
+    const svg = document.getElementById('cmpRadar');
+    if (!svg) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const cx = 250, cy = 250, R = 180;
+    const N = LABELS.length;
+    const step = (2 * Math.PI) / N;
+    const offset = -Math.PI / 2;
+
+    function px(a, r) { return cx + r * Math.cos(a); }
+    function py(a, r) { return cy + r * Math.sin(a); }
+    function ring(r) {
+      let pts = '';
+      for (let i = 0; i < N; i++) {
+        const a = offset + i * step;
+        pts += px(a, r) + ',' + py(a, r) + ' ';
+      }
+      return pts.trim();
+    }
+
+    // Grid rings
+    [0.25, 0.5, 0.75, 1].forEach(frac => {
+      const poly = document.createElementNS(ns, 'polygon');
+      poly.setAttribute('points', ring(R * frac));
+      poly.setAttribute('class', 'radar-grid');
+      svg.appendChild(poly);
+    });
+
+    // Ring labels
+    [0.25, 0.5, 0.75].forEach(frac => {
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', cx + 3);
+      lbl.setAttribute('y', cy - R * frac + 1);
+      lbl.setAttribute('class', 'radar-ring-label');
+      lbl.textContent = Math.round(frac * 100) + '%';
+      svg.appendChild(lbl);
+    });
+
+    // Axes
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+      line.setAttribute('x2', px(a, R)); line.setAttribute('y2', py(a, R));
+      line.setAttribute('class', 'radar-axis');
+      svg.appendChild(line);
+    }
+
+    // Polygons helper
+    function dataPoly(scores, cls) {
+      let pts = '';
+      for (let i = 0; i < N; i++) {
+        const a = offset + i * step;
+        const r = Math.max(R * (scores[LABELS[i]] || 0), 0);
+        pts += px(a, r) + ',' + py(a, r) + ' ';
+      }
+      const poly = document.createElementNS(ns, 'polygon');
+      poly.setAttribute('points', pts.trim());
+      poly.setAttribute('class', cls);
+      return poly;
+    }
+
+    // Draw A under B
+    svg.appendChild(dataPoly(SCORES_A, 'radar-poly-a'));
+    svg.appendChild(dataPoly(SCORES_B, 'radar-poly-b'));
+
+    // Dots A
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      const r = Math.max(R * (SCORES_A[LABELS[i]] || 0), 0);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', px(a, r)); dot.setAttribute('cy', py(a, r));
+      dot.setAttribute('r', 3); dot.setAttribute('class', 'radar-dot-a');
+      svg.appendChild(dot);
+    }
+    // Dots B
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      const r = Math.max(R * (SCORES_B[LABELS[i]] || 0), 0);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', px(a, r)); dot.setAttribute('cy', py(a, r));
+      dot.setAttribute('r', 3); dot.setAttribute('class', 'radar-dot-b');
+      svg.appendChild(dot);
+    }
+
+    // Labels
+    for (let i = 0; i < N; i++) {
+      const a = offset + i * step;
+      const lr = R + 24;
+      const lx = px(a, lr), ly = py(a, lr);
+      const deg = ((a * 180 / Math.PI) + 360) % 360;
+
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', lx); txt.setAttribute('y', ly);
+      txt.setAttribute('class', 'radar-label');
+      if (deg > 95 && deg < 265) txt.setAttribute('text-anchor', 'end');
+      else if ((deg > 85 && deg <= 95) || (deg >= 265 && deg < 275)) txt.setAttribute('text-anchor', 'middle');
+      else txt.setAttribute('text-anchor', 'start');
+      txt.setAttribute('dominant-baseline', deg > 20 && deg < 160 ? 'hanging' : deg > 200 && deg < 340 ? 'auto' : 'central');
+      txt.textContent = ctrlLabel(LABELS[i]);
+      const title = document.createElementNS(ns, 'title');
+      title.textContent = ctrlLabel(LABELS[i]) + ' — ' + CTRL_NAMES[i];
+      txt.appendChild(title);
+      svg.appendChild(txt);
+    }
+  }
+
+  buildRadar();
+
+  // --- Table sort ---
+  const tbody = document.getElementById('deltaBody');
+  let sortCol = 'delta', sortDir = 1; // default: sort by delta desc (most improved first)
+
+  function getVal(row, col) {
+    if (col === 'id')    return parseInt(row.dataset.id, 10);
+    if (col === 'sa')    return parseFloat(row.dataset.sa);
+    if (col === 'sb')    return parseFloat(row.dataset.sb);
+    if (col === 'delta') return parseFloat(row.dataset.delta);
+    if (col === 'name')  return row.cells[1].textContent.trim().toLowerCase();
+    return 0;
+  }
+
+  function sortTable(col) {
+    if (sortCol === col) { sortDir *= -1; }
+    else { sortCol = col; sortDir = col === 'delta' ? -1 : 1; }
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const av = getVal(a, col), bv = getVal(b, col);
+      if (av < bv) return -sortDir;
+      if (av > bv) return  sortDir;
+      return 0;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+
+    document.querySelectorAll('.delta-table th').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.dataset.col === sortCol) {
+        th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+      }
+    });
+  }
+
+  // Default sort: delta descending
+  sortTable('delta');
+
+  document.querySelectorAll('.delta-table th[data-col]').forEach(th => {
+    th.addEventListener('click', () => sortTable(th.dataset.col));
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
