@@ -166,6 +166,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 - `POST /api/projects/<id>/risk-items/<item_id>/close` — mark item closed (editor+)
 - `POST /api/projects/<id>/risk-items/<item_id>/reopen` — reopen closed item (editor+)
 - `GET /api/projects/<id>/risk-register/export` — download risk register as CSV (all roles)
+- `GET /api/projects/<id>/project-audit-log?page=<n>` — paginated risk register activity log, 25/page (editor+)
 
 **Comparison**
 - `GET /projects/<id>/compare?a=<asm_id>&b=<asm_id>` — dual-polygon radar + delta table for two assessments (all roles); renders selector UI with no params or mismatched IDs
@@ -196,7 +197,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 - **Audit log denormalisation**: `user_display` is snapshotted at write time so the trail survives user deletion.
 - **Attachment naming**: `uploads/{att_id}{ext}` — no path collision across assessments.
 - **Risk register on demand**: risk item weights are computed at import and stored; the register page reads directly from `risk_items`.
-- **Schema migrations**: `init_db()` tracks applied migrations in `schema_migrations`. Current migrations: `0001` (initial schema), `0002` (audit_log), `0003` (user_projects rename), `0004` (risk_items).
+- **Schema migrations**: `init_db()` tracks applied migrations in `schema_migrations`. Current migrations: `0001` (initial schema), `0002` (audit_log), `0003` (user_projects rename), `0004` (risk_items), `0005` (project_audit_log).
 - **CSRF protection**: all state-changing requests require a CSRF token — forms use a hidden `_csrf` field, JS API calls use an `X-CSRF-Token` header. Token is embedded in each page via Jinja2.
 
 ## Roadmap
@@ -213,4 +214,6 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Risk register (project-scoped, import, treatments, close/reopen, CSV export) | ✅ Done |
 | Cross-assessment comparison (dual-polygon radar + delta table) | ✅ Done |
 | User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
-| UX review pass | 🔲 Next |
+| Risk register audit log (track treatment/close/reopen changes per project) | ✅ Done |
+| Project member management (project admins add/remove existing users by email) | 🔲 Planned |
+| UX review pass | 🔲 Deferred (after above) |

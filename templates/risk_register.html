@@ -506,6 +506,23 @@
     </div>
     {% endif %}
 
+  {% if user_role in ('admin', 'editor') %}
+  <div class="audit-section" style="margin:1.5rem 0 2rem;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
+    <button class="audit-header collapsed" id="rrAuditToggle" onclick="toggleRrAudit()" style="display:flex;align-items:center;gap:0.5rem;padding:0.65rem 1rem;background:var(--surface-2);cursor:pointer;user-select:none;font-weight:600;font-size:0.88rem;border:none;width:100%;text-align:left;color:var(--text-primary);">
+      Activity Log
+      <span style="margin-left:auto;transition:transform 0.2s;font-size:0.7rem;color:var(--text-muted);" id="rrAuditChevron">&#9660;</span>
+    </button>
+    <div id="rrAuditBody" style="display:none;">
+      <ul id="rrAuditList" style="list-style:none;margin:0;padding:0;font-size:0.82rem;"></ul>
+      <div id="rrAuditFooter" style="display:none;flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--text-muted);background:var(--surface-2);">
+        <button id="rrAuditPrev" onclick="loadRrAudit(rrAuditPage-1)" disabled style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);cursor:pointer;">&#8592; Prev</button>
+        <span id="rrAuditPageInfo"></span>
+        <button id="rrAuditNext" onclick="loadRrAudit(rrAuditPage+1)" style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);cursor:pointer;">Next &#8594;</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   </main>
 </div>
 {% endblock %}
@@ -634,5 +651,101 @@ function showNotice(msg, isError) {
 
 // Init
 applyFilter('open');
+
+{% if user_role in ('admin', 'editor') %}
+// --- Activity Log ---
+let rrAuditPage = 1;
+let rrAuditLoaded = false;
+
+const RR_ACTION_LABELS = {
+  risk_item_imported: 'Imported',
+  treatment_changed: 'Treatment changed',
+  owner_changed: 'Owner changed',
+  target_date_changed: 'Target date changed',
+  notes_changed: 'Notes changed',
+  risk_item_closed: 'Closed',
+  risk_item_reopened: 'Reopened',
+};
+
+function fmtRrSgId(raw) {
+  if (!raw) return '';
+  const [ctrl, sub] = raw.split('.');
+  return 'C' + ctrl.padStart(2, '0') + '-' + (sub || '').padStart(2, '0');
+}
+
+function fmtRrTs(iso) {
+  if (!iso) return '';
+  return iso.replace('T', ' ').replace('Z', '').slice(0, 16);
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtRrAction(e) {
+  const label = RR_ACTION_LABELS[e.action] || e.action;
+  const sg = e.safeguard_id ? ' · ' + fmtRrSgId(e.safeguard_id) : '';
+  if (e.old_value !== null && e.old_value !== undefined && e.new_value !== null && e.new_value !== undefined) {
+    return label + sg + ': ' + (e.old_value || '—') + ' → ' + (e.new_value || '—');
+  }
+  return label + sg;
+}
+
+async function loadRrAudit(page) {
+  rrAuditPage = page;
+  const res = await fetch('/api/projects/' + PROJECT_ID + '/project-audit-log?page=' + page);
+  if (!res.ok) return;
+  const data = await res.json();
+  const list = document.getElementById('rrAuditList');
+  list.innerHTML = '';
+  if (data.entries.length === 0 && page === 1) {
+    list.innerHTML = '<li style="padding:1.5rem 1rem;color:var(--text-muted);font-size:0.84rem;text-align:center;">No activity yet.</li>';
+    document.getElementById('rrAuditFooter').style.display = 'none';
+    return;
+  }
+  for (const e of data.entries) {
+    const li = document.createElement('li');
+    li.style.cssText = 'display:grid;grid-template-columns:10rem 8rem 1fr;gap:0.5rem;padding:0.45rem 1rem;border-top:1px solid var(--border);align-items:baseline;font-size:0.82rem;';
+    li.innerHTML =
+      '<span style="font-family:monospace;color:var(--text-muted);font-size:0.78rem;">' + escHtml(fmtRrTs(e.occurred_at)) + '</span>' +
+      '<span style="color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(e.user_display) + '</span>' +
+      '<span style="color:var(--text-primary);">' + escHtml(fmtRrAction(e)) + '</span>';
+    list.appendChild(li);
+  }
+  const totalPages = Math.ceil(data.total / data.per_page);
+  const footer = document.getElementById('rrAuditFooter');
+  footer.style.display = totalPages > 1 ? 'flex' : 'none';
+  document.getElementById('rrAuditPageInfo').textContent = 'Page ' + page + ' of ' + totalPages;
+  document.getElementById('rrAuditPrev').disabled = page <= 1;
+  document.getElementById('rrAuditNext').disabled = page >= totalPages;
+}
+
+function toggleRrAudit() {
+  const body = document.getElementById('rrAuditBody');
+  const chevron = document.getElementById('rrAuditChevron');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  chevron.style.transform = open ? '' : 'rotate(-90deg)';
+  const lsKey = 'librevig-rr-log-' + PROJECT_ID;
+  localStorage.setItem(lsKey, open ? '1' : '0');
+  if (open && !rrAuditLoaded) {
+    rrAuditLoaded = true;
+    loadRrAudit(1);
+  }
+}
+
+// Restore collapse state
+(function() {
+  const lsKey = 'librevig-rr-log-' + PROJECT_ID;
+  if (localStorage.getItem(lsKey) === '1') {
+    const body = document.getElementById('rrAuditBody');
+    const chevron = document.getElementById('rrAuditChevron');
+    body.style.display = 'block';
+    chevron.style.transform = '';
+    rrAuditLoaded = true;
+    loadRrAudit(1);
+  }
+})();
+{% endif %}
 </script>
 {% endblock %}

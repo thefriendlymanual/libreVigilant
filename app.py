@@ -400,6 +400,29 @@ def init_db():
             )
             conn.commit()
 
+        # -------------------------------------------------------------------
+        # Migration 0005 — project_audit_log for risk register activity.
+        # -------------------------------------------------------------------
+        if not conn.execute("SELECT 1 FROM schema_migrations WHERE version='0005'").fetchone():
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS project_audit_log (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id   INTEGER NOT NULL REFERENCES projects(id),
+                    user_id      INTEGER REFERENCES users(id),
+                    user_display TEXT NOT NULL,
+                    action       TEXT NOT NULL,
+                    safeguard_id TEXT,
+                    old_value    TEXT,
+                    new_value    TEXT,
+                    occurred_at  TEXT NOT NULL
+                )
+            """)
+            conn.execute(
+                "INSERT INTO schema_migrations (version, applied_at) VALUES ('0005', ?)",
+                (datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),),
+            )
+            conn.commit()
+
     finally:
         conn.close()
 
@@ -884,6 +907,16 @@ def _log(conn, asm_id, action, sg_id=None, old=None, new=None):
     )
 
 
+def _log_project(conn, project_id, action, sg_id=None, old=None, new=None):
+    conn.execute(
+        "INSERT INTO project_audit_log "
+        "(project_id, user_id, user_display, action, safeguard_id, old_value, new_value, occurred_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (project_id, session.get("user_id"), session.get("display_name", ""),
+         action, sg_id, old, new, datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+    )
+
+
 @app.route("/api/assessments/<int:asm_id>")
 @login_required
 def api_get_assessment(asm_id):
@@ -949,6 +982,33 @@ def api_audit_log(asm_id):
             "FROM audit_log WHERE assessment_id = ? "
             "ORDER BY occurred_at DESC LIMIT ? OFFSET ?",
             (asm_id, per_page, offset),
+        ).fetchall()
+    return jsonify({
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "entries": [dict(r) for r in rows],
+    })
+
+
+@app.route("/api/projects/<int:project_id>/project-audit-log")
+@login_required
+def api_project_audit_log(project_id):
+    role = _user_role_for_project(project_id)
+    if role not in ("admin", "editor"):
+        abort(403)
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 25
+    offset = (page - 1) * per_page
+    with get_db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM project_audit_log WHERE project_id = ?", (project_id,)
+        ).fetchone()[0]
+        rows = conn.execute(
+            "SELECT user_display, action, safeguard_id, old_value, new_value, occurred_at "
+            "FROM project_audit_log WHERE project_id = ? "
+            "ORDER BY occurred_at DESC LIMIT ? OFFSET ?",
+            (project_id, per_page, offset),
         ).fetchall()
     return jsonify({
         "total": total,
@@ -1394,6 +1454,7 @@ def api_risk_import(project_id):
             )
             if result.rowcount:
                 imported += 1
+                _log_project(conn, project_id, "risk_item_imported", sg_id=row["safeguard_id"])
         conn.commit()
 
     return jsonify({"imported": imported, "total_gaps": len(gaps)})
@@ -1409,7 +1470,8 @@ def api_risk_item_update(project_id, item_id):
 
     with get_db() as conn:
         item = conn.execute(
-            "SELECT id FROM risk_items WHERE id = ? AND project_id = ?",
+            "SELECT id, safeguard_id, treatment, owner, target_date, notes "
+            "FROM risk_items WHERE id = ? AND project_id = ?",
             (item_id, project_id),
         ).fetchone()
         if not item:
@@ -1431,12 +1493,23 @@ def api_risk_item_update(project_id, item_id):
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values()) + [now, session["user_id"], item_id, project_id]
+    action_map = {
+        "treatment": "treatment_changed",
+        "owner": "owner_changed",
+        "target_date": "target_date_changed",
+        "notes": "notes_changed",
+    }
     with get_db() as conn:
         conn.execute(
             f"UPDATE risk_items SET {set_clause}, updated_at = ?, updated_by = ? "
             "WHERE id = ? AND project_id = ?",
             values,
         )
+        for field, new_val in updates.items():
+            old_val = item[field]
+            if old_val != new_val:
+                _log_project(conn, project_id, action_map[field],
+                             sg_id=item["safeguard_id"], old=old_val, new=new_val)
         conn.commit()
 
     return jsonify({"ok": True})
@@ -1451,11 +1524,18 @@ def api_risk_item_close(project_id, item_id):
     _validate_csrf_api()
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     with get_db() as conn:
+        item = conn.execute(
+            "SELECT safeguard_id FROM risk_items WHERE id = ? AND project_id = ?",
+            (item_id, project_id),
+        ).fetchone()
+        if not item:
+            abort(404)
         conn.execute(
             "UPDATE risk_items SET status = 'closed', updated_at = ?, updated_by = ? "
             "WHERE id = ? AND project_id = ?",
             (now, session["user_id"], item_id, project_id),
         )
+        _log_project(conn, project_id, "risk_item_closed", sg_id=item["safeguard_id"])
         conn.commit()
     return jsonify({"ok": True})
 
@@ -1469,11 +1549,18 @@ def api_risk_item_reopen(project_id, item_id):
     _validate_csrf_api()
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     with get_db() as conn:
+        item = conn.execute(
+            "SELECT safeguard_id FROM risk_items WHERE id = ? AND project_id = ?",
+            (item_id, project_id),
+        ).fetchone()
+        if not item:
+            abort(404)
         conn.execute(
             "UPDATE risk_items SET status = 'open', updated_at = ?, updated_by = ? "
             "WHERE id = ? AND project_id = ?",
             (now, session["user_id"], item_id, project_id),
         )
+        _log_project(conn, project_id, "risk_item_reopened", sg_id=item["safeguard_id"])
         conn.commit()
     return jsonify({"ok": True})
 
