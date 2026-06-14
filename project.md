@@ -155,7 +155,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 - `DELETE /api/assessments/<id>/notes/<note_id>` — delete note (editor+)
 - `POST /api/assessments/<id>/safeguards/<sg_id>/attachments` — upload file (editor+)
 - `DELETE /api/assessments/<id>/attachments/<att_id>` — delete file (editor+)
-- `GET /api/attachments/<att_id>` — serve attachment file
+- `GET /api/attachments/<att_id>` — serve attachment file (forced download; `Content-Disposition: attachment`)
 - `GET /api/assessments/<id>/export` — download CSV (all roles)
 - `GET /api/assessments/<id>/audit-log?page=<n>` — paginated audit log, 25/page (editor+)
 

@@ -33,7 +33,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXT = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp",
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".pptx",
     ".txt", ".csv", ".rtf",
 }
@@ -488,6 +488,12 @@ def require_role(*roles):
 # ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 
 @app.errorhandler(413)
 def too_large(e):
@@ -1033,6 +1039,8 @@ def api_update_status(asm_id, sg_id):
     asm = _load_assessment_or_abort(asm_id)
     _require_editable(asm)
     _validate_csrf_api()
+    if sg_id not in _SG_INDEX:
+        return jsonify({"error": "Invalid safeguard ID"}), 400
 
     payload = request.get_json(silent=True) or {}
     status = payload.get("status", "")
@@ -1074,6 +1082,8 @@ def api_add_note(asm_id, sg_id):
     asm = _load_assessment_or_abort(asm_id)
     _require_editable(asm)
     _validate_csrf_api()
+    if sg_id not in _SG_INDEX:
+        return jsonify({"error": "Invalid safeguard ID"}), 400
 
     payload = request.get_json(silent=True) or {}
     body = (payload.get("body") or "").strip()
@@ -1122,6 +1132,8 @@ def api_add_attachment(asm_id, sg_id):
     asm = _load_assessment_or_abort(asm_id)
     _require_editable(asm)
     _validate_csrf_api()
+    if sg_id not in _SG_INDEX:
+        return jsonify({"error": "Invalid safeguard ID"}), 400
 
     f = request.files.get("file")
     if not f or not f.filename:
@@ -1210,7 +1222,7 @@ def api_get_attachment(att_id):
     if not os.path.exists(path):
         abort(404)
     return send_file(path, mimetype=row["mime_type"],
-                     download_name=row["filename"], as_attachment=False)
+                     download_name=row["filename"], as_attachment=True)
 
 
 @app.route("/api/assessments/<int:asm_id>/export")
