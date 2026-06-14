@@ -6,3 +6,6 @@ uploads/
 .env
 *.key
 *.pem
+
+# Internal security findings — do not publish to the public repo
+SECURITY.md

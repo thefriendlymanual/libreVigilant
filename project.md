@@ -170,12 +170,14 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 **Comparison**
 - `GET /projects/<id>/compare?a=<asm_id>&b=<asm_id>` — dual-polygon radar + delta table for two assessments (all roles); renders selector UI with no params or mismatched IDs
 
-**User Management** *(planned — not yet built)*
-- `GET /users` — user list page
-- `POST /users` — create user
-- `POST /users/<uid>/edit` — change role / display_name
-- `POST /users/<uid>/delete` — delete user
-- `GET/POST /users/<uid>/reset-password` — set new password
+**User Management** *(admin only — instance role = admin)*
+- `GET /users` — user list page (table of all users + project memberships)
+- `POST /users` — create user (email, display_name, password, instance role)
+- `POST /users/<uid>/edit` — change display_name / instance role
+- `POST /users/<uid>/delete` — delete user (blocks self-delete; cascades user_projects)
+- `POST /users/<uid>/reset-password` — admin sets new password (no SMTP)
+- `POST /users/<uid>/projects` — add user to a project with a role
+- `POST /users/<uid>/projects/<pid>/remove` — remove user from a project
 
 ## Key Implementation Decisions
 
@@ -210,5 +212,5 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Audit log panel (collapsible, paginated) | ✅ Done |
 | Risk register (project-scoped, import, treatments, close/reopen, CSV export) | ✅ Done |
 | Cross-assessment comparison (dual-polygon radar + delta table) | ✅ Done |
-| User management page (admin creates/edits/deletes users, assigns roles) | 🔲 Planned |
-| UX review pass | 🔲 Deferred (after user management) |
+| User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
+| UX review pass | 🔲 Next |

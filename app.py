@@ -1478,6 +1478,235 @@ def api_risk_item_reopen(project_id, item_id):
     return jsonify({"ok": True})
 
 
+# ---------------------------------------------------------------------------
+# User management (instance-admin only)
+# ---------------------------------------------------------------------------
+
+def _require_instance_admin():
+    if "user_id" not in session:
+        abort(redirect(url_for("login")))
+    if session.get("role") != "admin":
+        abort(403)
+
+
+@app.route("/users")
+@login_required
+def list_users():
+    _require_instance_admin()
+    with get_db() as conn:
+        users = conn.execute(
+            "SELECT id, email, display_name, role, created_at, last_login_at "
+            "FROM users ORDER BY display_name"
+        ).fetchall()
+        projects = conn.execute(
+            "SELECT id, name FROM projects ORDER BY name"
+        ).fetchall()
+        memberships = conn.execute(
+            "SELECT user_id, project_id, role FROM user_projects"
+        ).fetchall()
+
+    by_user = {}
+    for m in memberships:
+        by_user.setdefault(m["user_id"], []).append({
+            "project_id": m["project_id"],
+            "role": m["role"],
+        })
+
+    sidebar_projects = _load_sidebar_projects()
+    return render_template(
+        "users.html",
+        users=[dict(u) for u in users],
+        all_projects=[dict(p) for p in projects],
+        memberships_by_user=by_user,
+        projects=sidebar_projects,
+        active_assessment=None,
+    )
+
+
+@app.route("/users", methods=["POST"])
+@login_required
+def create_user():
+    _require_instance_admin()
+    _validate_csrf()
+
+    email = request.form.get("email", "").strip().lower()
+    display_name = request.form.get("display_name", "").strip()
+    password = request.form.get("password", "")
+    role = request.form.get("role", "viewer")
+
+    errors = []
+    if not email or "@" not in email or "." not in email.split("@")[-1]:
+        errors.append("A valid email address is required.")
+    if not display_name:
+        errors.append("Display name is required.")
+    if len(password) < 12:
+        errors.append("Password must be at least 12 characters.")
+    if role not in ("admin", "viewer"):
+        role = "viewer"
+
+    if not errors:
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    "INSERT INTO users (email, display_name, password_hash, role, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (email, display_name, generate_password_hash(password), role, now),
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            errors.append("That email address is already registered.")
+
+    if errors:
+        with get_db() as conn:
+            users = conn.execute(
+                "SELECT id, email, display_name, role, created_at, last_login_at "
+                "FROM users ORDER BY display_name"
+            ).fetchall()
+            projects = conn.execute("SELECT id, name FROM projects ORDER BY name").fetchall()
+            memberships = conn.execute("SELECT user_id, project_id, role FROM user_projects").fetchall()
+        by_user = {}
+        for m in memberships:
+            by_user.setdefault(m["user_id"], []).append({"project_id": m["project_id"], "role": m["role"]})
+        sidebar_projects = _load_sidebar_projects()
+        return render_template(
+            "users.html",
+            users=[dict(u) for u in users],
+            all_projects=[dict(p) for p in projects],
+            memberships_by_user=by_user,
+            projects=sidebar_projects,
+            active_assessment=None,
+            create_errors=errors,
+            create_form={"email": email, "display_name": display_name, "role": role},
+        ), 422
+
+    return redirect(url_for("list_users"))
+
+
+@app.route("/users/<int:uid>/edit", methods=["POST"])
+@login_required
+def edit_user(uid):
+    _require_instance_admin()
+    _validate_csrf()
+
+    display_name = request.form.get("display_name", "").strip()
+    role = request.form.get("role", "viewer")
+
+    if not display_name:
+        abort(400)
+    if role not in ("admin", "viewer"):
+        role = "viewer"
+
+    # Prevent self-demotion (would lock the admin out).
+    if uid == session["user_id"] and role != "admin":
+        abort(400)
+
+    with get_db() as conn:
+        user = conn.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
+        if not user:
+            abort(404)
+        conn.execute(
+            "UPDATE users SET display_name = ?, role = ? WHERE id = ?",
+            (display_name, role, uid),
+        )
+        conn.commit()
+
+    # Keep session in sync if the admin edited their own display name.
+    if uid == session["user_id"]:
+        session["display_name"] = display_name
+
+    return redirect(url_for("list_users"))
+
+
+@app.route("/users/<int:uid>/delete", methods=["POST"])
+@login_required
+def delete_user(uid):
+    _require_instance_admin()
+    _validate_csrf()
+
+    if uid == session["user_id"]:
+        abort(400)
+
+    with get_db() as conn:
+        user = conn.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
+        if not user:
+            abort(404)
+        conn.execute("DELETE FROM user_projects WHERE user_id = ?", (uid,))
+        conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+        conn.commit()
+
+    return redirect(url_for("list_users"))
+
+
+@app.route("/users/<int:uid>/reset-password", methods=["POST"])
+@login_required
+def reset_password(uid):
+    _require_instance_admin()
+    _validate_csrf()
+
+    password = request.form.get("password", "")
+    if len(password) < 12:
+        abort(400)
+
+    with get_db() as conn:
+        user = conn.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
+        if not user:
+            abort(404)
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(password), uid),
+        )
+        conn.commit()
+
+    return redirect(url_for("list_users"))
+
+
+@app.route("/users/<int:uid>/projects", methods=["POST"])
+@login_required
+def add_user_to_project(uid):
+    _require_instance_admin()
+    _validate_csrf()
+
+    project_id = request.form.get("project_id", type=int)
+    role = request.form.get("role", "viewer")
+
+    if not project_id:
+        abort(400)
+    if role not in ("admin", "editor", "viewer"):
+        role = "viewer"
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_db() as conn:
+        user = conn.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
+        project = conn.execute("SELECT id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not user or not project:
+            abort(404)
+        conn.execute(
+            "INSERT OR IGNORE INTO user_projects (user_id, project_id, role, joined_at) "
+            "VALUES (?, ?, ?, ?)",
+            (uid, project_id, role, now),
+        )
+        conn.commit()
+
+    return redirect(url_for("list_users"))
+
+
+@app.route("/users/<int:uid>/projects/<int:project_id>/remove", methods=["POST"])
+@login_required
+def remove_user_from_project(uid, project_id):
+    _require_instance_admin()
+    _validate_csrf()
+
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM user_projects WHERE user_id = ? AND project_id = ?",
+            (uid, project_id),
+        )
+        conn.commit()
+
+    return redirect(url_for("list_users"))
+
+
 @app.route("/api/projects/<int:project_id>/risk-register/export")
 @login_required
 def api_risk_export(project_id):
