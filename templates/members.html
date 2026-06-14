@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Members — {{ project.name }} — LibreVigilant{% endblock %}
+
+{% block extra_styles %}
+  .mb-main { padding: 1.75rem 2rem 3rem; overflow-y: auto; }
+
+  .mb-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+  }
+  .mb-eyebrow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+  }
+  .mb-title { font-size: 1.45rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+
+  .mb-panel {
+    background: var(--surface-container);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .mb-panel-head {
+    padding: 0.85rem 1.25rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--outline-variant);
+  }
+
+  .mb-table { width: 100%; border-collapse: collapse; }
+  .mb-table th {
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--outline-variant);
+    background: var(--surface-container-high);
+  }
+  .mb-table td {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--outline-variant);
+    vertical-align: middle;
+  }
+  .mb-table tr:last-child td { border-bottom: none; }
+  .mb-table tr:hover td { background: var(--surface-container-high); }
+
+  .role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .role-badge.admin   { background: var(--primary-container); color: var(--on-primary-container); }
+  .role-badge.editor  { background: var(--tertiary-container); color: var(--on-tertiary-container); }
+  .role-badge.viewer  { background: var(--surface-variant); color: var(--on-surface-variant); }
+
+  .role-select {
+    font-size: 0.82rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .role-select:disabled { opacity: 0.5; cursor: default; }
+
+  .btn-remove {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid var(--error);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--error);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-remove:hover { background: var(--error-container); }
+  .btn-remove:disabled { opacity: 0.35; cursor: default; }
+
+  .add-member-form {
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .add-member-form select,
+  .add-member-form input {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+  .add-member-form select { min-width: 10rem; }
+  .btn-add {
+    font-size: 0.82rem;
+    padding: 0.35rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: var(--on-primary);
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-add:hover { opacity: 0.88; }
+  .btn-add:disabled { opacity: 0.5; cursor: default; }
+
+  .add-msg {
+    font-size: 0.82rem;
+    margin-left: 0.25rem;
+  }
+  .add-msg.ok  { color: var(--tertiary); }
+  .add-msg.err { color: var(--error); }
+
+  .self-tag {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-left: 0.4rem;
+  }
+{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<div class="shell" id="shell">
+{% include "_sidebar.html" %}
+<main class="mb-main">
+  <div class="mb-header">
+    <div>
+      <div class="mb-eyebrow">{{ project.name }}</div>
+      <h1 class="mb-title">Members</h1>
+    </div>
+  </div>
+
+  <div class="mb-panel">
+    <div class="mb-panel-head">Project members</div>
+    <table class="mb-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="membersBody">
+        {% for m in members %}
+        <tr id="member-row-{{ m.id }}">
+          <td>
+            {{ m.display_name }}
+            {% if m.id == current_user_id %}<span class="self-tag">(you)</span>{% endif %}
+          </td>
+          <td>{{ m.email }}</td>
+          <td>
+            <select class="role-select"
+                    data-uid="{{ m.id }}"
+                    {% if m.id == current_user_id %}disabled{% endif %}
+                    onchange="changeRole({{ m.id }}, this)">
+              <option value="viewer"  {% if m.role == 'viewer'  %}selected{% endif %}>Viewer</option>
+              <option value="editor"  {% if m.role == 'editor'  %}selected{% endif %}>Editor</option>
+              <option value="admin"   {% if m.role == 'admin'   %}selected{% endif %}>Admin</option>
+            </select>
+          </td>
+          <td>{{ m.joined_at[:10] if m.joined_at else '—' }}</td>
+          <td>
+            {% if m.id != current_user_id %}
+            <button class="btn-remove" onclick="removeMember({{ m.id }}, '{{ m.display_name | e }}', this)">
+              Remove
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if non_members %}
+    <div style="border-top: 1px solid var(--outline-variant);">
+      <div class="add-member-form">
+        <select id="addUserSelect">
+          {% for u in non_members %}
+          <option value="{{ u.id }}">{{ u.display_name }}</option>
+          {% endfor %}
+        </select>
+        <select id="addRoleSelect">
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="btn-add" id="addBtn" onclick="addMember()">Add</button>
+        <span class="add-msg" id="addMsg"></span>
+      </div>
+    </div>
+    {% else %}
+    <div style="padding: 0.75rem 1.25rem; font-size: 0.82rem; color: var(--text-muted); border-top: 1px solid var(--outline-variant);">
+      All users are already members of this project.
+    </div>
+    {% endif %}
+  </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_sidebar_script.html" %}
+<script>
+const PROJECT_ID = {{ project.id }};
+const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+function apiPost(url, body) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF },
+    body: JSON.stringify(body),
+  }).then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d })));
+}
+
+function changeRole(uid, selectEl) {
+  const newRole = selectEl.value;
+  const prev = selectEl.dataset.prev || Array.from(selectEl.options).find(o => o.selected)?.value;
+  selectEl.disabled = true;
+  apiPost(`/api/projects/${PROJECT_ID}/members/${uid}/role`, { role: newRole })
+    .then(({ ok, data }) => {
+      selectEl.disabled = (selectEl.dataset.self === "true");
+      if (!ok) {
+        alert(data.error || "Failed to update role.");
+        if (prev) selectEl.value = prev;
+      } else {
+        selectEl.dataset.prev = newRole;
+      }
+    })
+    .catch(() => {
+      selectEl.disabled = false;
+      if (prev) selectEl.value = prev;
+      alert("Request failed.");
+    });
+}
+
+function removeMember(uid, name, btn) {
+  if (!confirm(`Remove ${name} from this project?`)) return;
+  btn.disabled = true;
+  apiPost(`/api/projects/${PROJECT_ID}/members/${uid}/remove`, {})
+    .then(({ ok, data }) => {
+      if (!ok) {
+        btn.disabled = false;
+        alert(data.error || "Failed to remove member.");
+      } else {
+        const row = document.getElementById(`member-row-${uid}`);
+        if (row) row.remove();
+      }
+    })
+    .catch(() => { btn.disabled = false; alert("Request failed."); });
+}
+
+function addMember() {
+  const userSelect = document.getElementById("addUserSelect");
+  const roleSelect = document.getElementById("addRoleSelect");
+  const btn = document.getElementById("addBtn");
+  const msg = document.getElementById("addMsg");
+  if (!userSelect) return;
+  const uid = parseInt(userSelect.value);
+  const role = roleSelect.value;
+  btn.disabled = true;
+  msg.textContent = "";
+  msg.className = "add-msg";
+  apiPost(`/api/projects/${PROJECT_ID}/members`, { user_id: uid, role })
+    .then(({ ok, data }) => {
+      btn.disabled = false;
+      if (!ok) {
+        msg.textContent = data.error || "Failed to add member.";
+        msg.className = "add-msg err";
+      } else {
+        location.reload();
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      msg.textContent = "Request failed.";
+      msg.className = "add-msg err";
+    });
+}
+</script>
+{% endblock %}

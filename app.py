@@ -625,12 +625,12 @@ def _user_role_for_project(project_id):
 
 
 def _load_sidebar_projects():
-    """All projects the current user belongs to, each with their assessments."""
+    """All projects the current user belongs to, each with their assessments and role."""
     if "user_id" not in session:
         return []
     with get_db() as conn:
         project_rows = conn.execute(
-            "SELECT p.id, p.name, p.slug FROM projects p "
+            "SELECT p.id, p.name, p.slug, up.role AS user_role FROM projects p "
             "JOIN user_projects up ON up.project_id = p.id "
             "WHERE up.user_id = ? ORDER BY p.name",
             (session["user_id"],),
@@ -646,6 +646,7 @@ def _load_sidebar_projects():
                 "id": project["id"],
                 "name": project["name"],
                 "slug": project["slug"],
+                "user_role": project["user_role"],
                 "assessments": [dict(a) for a in rows],
             })
         return result
@@ -1561,6 +1562,146 @@ def api_risk_item_reopen(project_id, item_id):
             (now, session["user_id"], item_id, project_id),
         )
         _log_project(conn, project_id, "risk_item_reopened", sg_id=item["safeguard_id"])
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Project member management (project-admin only)
+# ---------------------------------------------------------------------------
+
+@app.route("/projects/<int:project_id>/members")
+@login_required
+def project_members(project_id):
+    role = _user_role_for_project(project_id)
+    if role != "admin":
+        abort(403)
+    with get_db() as conn:
+        project = conn.execute(
+            "SELECT id, name FROM projects WHERE id = ?", (project_id,)
+        ).fetchone()
+        if not project:
+            abort(404)
+        members = conn.execute(
+            "SELECT u.id, u.email, u.display_name, up.role, up.joined_at "
+            "FROM user_projects up JOIN users u ON u.id = up.user_id "
+            "WHERE up.project_id = ? ORDER BY u.display_name",
+            (project_id,),
+        ).fetchall()
+        member_ids = {m["id"] for m in members}
+        all_users = conn.execute(
+            "SELECT id, display_name FROM users ORDER BY display_name"
+        ).fetchall()
+        non_members = [dict(u) for u in all_users if u["id"] not in member_ids]
+    projects = _load_sidebar_projects()
+    return render_template(
+        "members.html",
+        project=dict(project),
+        members=[dict(m) for m in members],
+        non_members=non_members,
+        user_role=role,
+        projects=projects,
+        active_project_id=project_id,
+        active_assessment=None,
+        current_user_id=session["user_id"],
+    )
+
+
+@app.route("/api/projects/<int:project_id>/members", methods=["POST"])
+@login_required
+def api_project_add_member(project_id):
+    if _user_role_for_project(project_id) != "admin":
+        abort(403)
+    _validate_csrf_api()
+    data = request.get_json(force=True)
+    try:
+        uid = int(data.get("user_id"))
+    except (TypeError, ValueError):
+        abort(400)
+    new_role = data.get("role", "viewer")
+    if new_role not in ("admin", "editor", "viewer"):
+        abort(400)
+    with get_db() as conn:
+        user = conn.execute(
+            "SELECT id, display_name FROM users WHERE id = ?", (uid,)
+        ).fetchone()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        existing = conn.execute(
+            "SELECT 1 FROM user_projects WHERE user_id = ? AND project_id = ?",
+            (uid, project_id),
+        ).fetchone()
+        if existing:
+            return jsonify({"error": "User is already a member"}), 409
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        conn.execute(
+            "INSERT INTO user_projects (user_id, project_id, role, joined_at) VALUES (?, ?, ?, ?)",
+            (uid, project_id, new_role, now),
+        )
+        _log_project(
+            conn, project_id, "member_added",
+            new=f"{user['display_name']} as {new_role}",
+        )
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:project_id>/members/<int:uid>/role", methods=["POST"])
+@login_required
+def api_project_member_role(project_id, uid):
+    if _user_role_for_project(project_id) != "admin":
+        abort(403)
+    if uid == session.get("user_id"):
+        return jsonify({"error": "Cannot change your own role"}), 400
+    _validate_csrf_api()
+    data = request.get_json(force=True)
+    new_role = data.get("role", "")
+    if new_role not in ("admin", "editor", "viewer"):
+        abort(400)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT up.role, u.display_name FROM user_projects up "
+            "JOIN users u ON u.id = up.user_id "
+            "WHERE up.user_id = ? AND up.project_id = ?",
+            (uid, project_id),
+        ).fetchone()
+        if not row:
+            abort(404)
+        conn.execute(
+            "UPDATE user_projects SET role = ? WHERE user_id = ? AND project_id = ?",
+            (new_role, uid, project_id),
+        )
+        _log_project(
+            conn, project_id, "member_role_changed",
+            old=row["role"],
+            new=f"{row['display_name']}: {new_role}",
+        )
+        conn.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<int:project_id>/members/<int:uid>/remove", methods=["POST"])
+@login_required
+def api_project_remove_member(project_id, uid):
+    if _user_role_for_project(project_id) != "admin":
+        abort(403)
+    if uid == session.get("user_id"):
+        return jsonify({"error": "Cannot remove yourself from the project"}), 400
+    _validate_csrf_api()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT u.display_name FROM user_projects up "
+            "JOIN users u ON u.id = up.user_id "
+            "WHERE up.user_id = ? AND up.project_id = ?",
+            (uid, project_id),
+        ).fetchone()
+        if not row:
+            abort(404)
+        conn.execute(
+            "DELETE FROM user_projects WHERE user_id = ? AND project_id = ?",
+            (uid, project_id),
+        )
+        _log_project(conn, project_id, "member_removed", new=row["display_name"])
         conn.commit()
     return jsonify({"ok": True})
 

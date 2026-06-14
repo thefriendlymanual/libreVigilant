@@ -38,6 +38,14 @@
           &#9651; Compare
         </a>
 
+        {% if project.user_role == 'admin' %}
+          <a class="asm-link"
+             href="{{ url_for('project_members', project_id=project.id) }}"
+             data-active="{{ 'true' if (active_project_id | default(None)) == project.id and request.endpoint == 'project_members' else 'false' }}">
+            &#9737; Members
+          </a>
+        {% endif %}
+
         {% if current_user and current_user.role == 'admin' %}
           <button class="new-asm-toggle"
                   type="button"

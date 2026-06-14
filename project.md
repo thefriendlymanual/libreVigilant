@@ -122,7 +122,7 @@ Roles are per-project. A user can hold different roles across different projects
 | View assessment, risk register, compare | Yes | Yes | Yes |
 | Export CSV (assessment + risk register) | Yes | Yes | Yes |
 
-No self-registration — an admin creates user accounts directly (no SMTP required). [User management page is planned but not yet built.]
+No self-registration — an admin creates user accounts directly (no SMTP required). Project admins can manage their project's members via `/projects/<id>/members`.
 
 ## Routes
 
@@ -171,6 +171,12 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 **Comparison**
 - `GET /projects/<id>/compare?a=<asm_id>&b=<asm_id>` — dual-polygon radar + delta table for two assessments (all roles); renders selector UI with no params or mismatched IDs
 
+**Project Member Management** *(project admin only)*
+- `GET /projects/<id>/members` — members list + add-user form (project admin only)
+- `POST /api/projects/<id>/members` — add existing user to project; body `{"user_id": n, "role": "..."}` (project admin)
+- `POST /api/projects/<id>/members/<uid>/role` — change a member's role; body `{"role": "..."}` (project admin; cannot change own role)
+- `POST /api/projects/<id>/members/<uid>/remove` — remove member from project (project admin; cannot remove self)
+
 **User Management** *(admin only — instance role = admin)*
 - `GET /users` — user list page (table of all users + project memberships)
 - `POST /users` — create user (email, display_name, password, instance role)
@@ -215,5 +221,5 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Cross-assessment comparison (dual-polygon radar + delta table) | ✅ Done |
 | User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
 | Risk register audit log (track treatment/close/reopen changes per project) | ✅ Done |
-| Project member management (project admins add/remove existing users by email) | 🔲 Planned |
+| Project member management (project admins add/remove/change role of existing users) | ✅ Done |
 | UX review pass | 🔲 Deferred (after above) |
