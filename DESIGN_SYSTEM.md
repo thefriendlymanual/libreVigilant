@@ -2,7 +2,7 @@
 **LibreVigilant — CIS Controls v8.1 Assessment Tool — UI Reference**
 **Source:** Stitch project `6004159817817914172`, design system `assets/307ee8da7c864dbfbf4b59612407b55a` (v1)
 
-> **IMPORTANT**: All future UI work on this application MUST reference this document. Do not hard-code colours, spacing, or typography values outside of the token definitions in `index.html`'s `:root` and `[data-theme="dark"]` blocks. Always use the CSS custom properties defined here.
+> **IMPORTANT**: All future UI work on this application MUST reference this document. Do not hard-code colours, spacing, or typography values outside of the token definitions in `base.html`'s `:root` and `[data-theme="light"]` blocks. Always use the CSS custom properties defined here. Page templates extend `base.html`, so every token defined there is available in each template's `{% block extra_styles %}` — never redeclare tokens per-template.
 
 ---
 
@@ -127,9 +127,32 @@ Desaturated in dark mode, deeper in light mode for contrast:
 | `implemented` | `#D4F8EC` | `#007650` |
 | `not_applicable` | `#F2F2F3` | `#76737F` |
 
+Status colours are exposed as tokens in `base.html` and consumed by the `.s-{status}` classes — never hardcode them per-template:
+
+| Status | bg token | text token |
+|--------|----------|------------|
+| `not_assessed` | `--status-na-bg` | `--status-na-color` |
+| `not_implemented` | `--status-ni-bg` | `--status-ni-color` |
+| `partial` | `--status-pa-bg` | `--status-pa-color` |
+| `implemented` | `--status-im-bg` | `--status-im-color` |
+| `not_applicable` | `--status-np-bg` | `--status-np-color` |
+
+### CIS Function Badge Colours (chips)
+
+The six CIS function badges are a categorical scale, tokenized in `base.html` and consumed by the `.fn-{Function}` classes:
+
+| Function | bg token | text token | Dark bg/text | Light bg/text |
+|----------|----------|------------|--------------|---------------|
+| Govern | `--fn-govern-bg` | `--fn-govern-color` | `#2D1F00` / `#D29922` | `#FEF3C7` / `#92400E` |
+| Identify | `--fn-identify-bg` | `--fn-identify-color` | `#39485A` / `#B9C8DE` | `#D4E4FA` / `#1E40AF` |
+| Protect | `--fn-protect-bg` | `--fn-protect-color` | `#0D2818` / `#4EDEA3` | `#D4F8EC` / `#007650` |
+| Detect | `--fn-detect-bg` | `--fn-detect-color` | `#2D1B1B` / `#FFB4AB` | `#FFDAD6` / `#BA1A1A` |
+| Respond | `--fn-respond-bg` | `--fn-respond-color` | `#2D1500` / `#FBA06B` | `#FFEDD5` / `#9A3412` |
+| Recover | `--fn-recover-bg` | `--fn-recover-color` | `#0A2D2D` / `#7DD3FC` | `#CFFAFE` / `#155E75` |
+
 ### CSS Variable Blocks
 
-Implement these in `index.html`:
+Implement these in `base.html`:
 
 ```css
 :root, [data-theme="dark"] {

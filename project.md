@@ -23,7 +23,9 @@ or more Projects with a role per project.
   requirements.txt      Just: flask>=3.0
   uploads/              Evidence file uploads (named {attachment_id}{ext})
   templates/
-    base.html           Shared layout (CSS tokens, navbar, theme toggle, sidebar CSS)
+    base.html           Shared layout + single source of truth for all design tokens
+                        (surfaces, primary/secondary/tertiary, IG, status, CIS function
+                        badges), navbar, theme toggle, sidebar CSS
     _sidebar.html       Collapsible project/assessment nav sidebar (included by shell pages)
     _sidebar_script.html  Sidebar JS (collapse state, toggleProject, showNewAsm helpers)
     login.html          Auth entry point
@@ -225,9 +227,66 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
 | Risk register audit log (track treatment/close/reopen changes per project) | ✅ Done |
 | Project member management (project admins add/remove/change role of existing users) | ✅ Done |
-| UX review pass | 🔲 Deferred (after above) |
+| UX review pass | ✅ Done — see `UX-REVIEW.md` |
+| Design-system consistency fixes (dead template removed, undefined vars, centralized tokens) | ✅ Done |
+| Compare legend: wrap long assessment names within the panel | ✅ Done |
+| UI improvements (sidebar, responsive, a11y) — see below | 🔲 Todo |
 | Production install guide (WSGI server) | 🔲 Todo |
 | Dockerfile + Docker Compose for Docker deployment | 🔲 Todo |
 | User documentation | 🔲 Todo |
 | In-app help (docs served inline, linked from UI) | 🔲 Todo |
 | GitHub icon + link to project repo in UI | 🔲 Todo |
+
+### UI Improvements
+
+Outstanding items from the UX review (`UX-REVIEW.md`). The design-system consistency
+fixes are already landed; the items below are the remaining follow-ups, ordered by
+priority. Sidebar work is the highest-value cluster.
+
+**Sidebar layout** (highest priority — the nav is the spine of the app)
+
+- **Fix the collapsed state.** Collapsing currently hides every project, assessment,
+  and action (`base.html` hides `.project-section`/`.sidebar-footer` at the 52px width),
+  leaving an empty strip. Either build a real icon rail — per-project initial/icon plus
+  an assessment-count indicator, with a hover/click flyout — or drop the collapse toggle
+  entirely. A half-collapsed state that hides 100% of content is worse than none.
+- **Separate assessments from project tools.** Risk Register, Compare, and Members use
+  the same `.asm-link` styling and indentation as actual assessments, so tools read as if
+  they were assessments. Group them under a small uppercase `label-sm` sub-heading
+  ("Project tools") or give them a distinct treatment, and keep "+ New assessment" with
+  the assessment list.
+- **Strengthen the active-nav state.** The current 30%-mix background is faint
+  (especially in light mode where `--primary-container` is already pale). Add a 3px
+  `--primary` left accent bar to the active link and bump the background.
+- **Replace glyph icons with real SVG icons.** The leading `■ ▲ ☉` numeric entities are
+  off-system (violate the "thin 1.5pt stroke icons" rule) and are read literally by
+  screen readers. Use inline SVGs marked `aria-hidden="true"`.
+- **Make "Delete project" safer.** It sits inline below "+ New assessment" with hover-only
+  danger styling — easy to misclick for a cascade delete. Move it into a project context
+  menu (⋯) or the Members/settings page, or give it persistent danger styling plus a
+  type-to-confirm.
+- **Add project/assessment search** once a workspace accumulates enough projects that the
+  flat scroll becomes unwieldy.
+
+**Responsive**
+
+- The app shell (`.shell { grid-template-columns: 260px 1fr }`) has no breakpoint, so the
+  sidebar permanently eats 260px on phones/tablets and the assessment grid overflows. Add
+  `@media (max-width: 768px)` to collapse the shell to a single column with the sidebar as
+  an overlay drawer (reuse the existing collapse state machine).
+
+**Accessibility**
+
+- Wrap the sidebar in `<nav aria-label="Workspace">`; add a `<label>`/`aria-label` to the
+  risk-register import `<select>`; add a global `:focus-visible` ring (using
+  `--surface-tint`); add a skip-to-content link before the navbar.
+- Honour `prefers-reduced-motion` for the theme/grid/transform transitions.
+
+**Remaining token hygiene** (consistency fixes that were out of scope for the first pass)
+
+- `base.html` still hardcodes a few literals: navbar brand/`.btn-nav` colours, the
+  `.delete-project-btn:hover` colour (`#FFB4AB` — the *dark*-theme error colour, so it's
+  low-contrast pale pink in light mode; should be `var(--color-danger)`), and the
+  `filter-select` dropdown-arrow SVG fill (`#94a3b8`, doesn't track the theme).
+- `.rr-resolved-badge` and the assessment `.ig1/.ig2/.ig3` chip backgrounds use
+  off-palette hex; fold into tokens (`--color-warning` / sanctioned chip tokens).

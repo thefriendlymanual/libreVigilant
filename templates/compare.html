@@ -3,12 +3,11 @@
 {% block title %}Compare — {{ project.name }} — LibreVigilant{% endblock %}
 
 {% block extra_styles %}
+  /* IG colour tokens live in base.html :root */
   :root, [data-theme="dark"] {
-    --ig1-color: #A5B4FC; --ig2-color: #93C5FD; --ig3-color: #C4B5FD;
     --radar-a: #C0C1FF; --radar-b: #4EDEA3;
   }
   [data-theme="light"] {
-    --ig1-color: #4338CA; --ig2-color: #1D4ED8; --ig3-color: #6D28D9;
     --radar-a: #494BD6; --radar-b: #007650;
   }
 
@@ -117,17 +116,19 @@
     color: var(--on-surface); margin-bottom: 1rem;
   }
   .legend-item {
-    display: flex; align-items: center; gap: 0.65rem;
+    display: flex; align-items: flex-start; gap: 0.65rem;
     margin-bottom: 0.85rem;
   }
   .legend-swatch {
     width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+    margin-top: 2px;
   }
   .legend-swatch-a { background: var(--radar-a); }
   .legend-swatch-b { background: var(--radar-b); }
+  .legend-text { min-width: 0; }
   .legend-name {
     font-size: 0.8rem; font-weight: 600; color: var(--on-surface);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    overflow-wrap: break-word;
   }
   .legend-lifecycle {
     display: inline-flex; align-items: center;
@@ -277,7 +278,7 @@
           <h3>Legend</h3>
           <div class="legend-item">
             <div class="legend-swatch legend-swatch-a"></div>
-            <div>
+            <div class="legend-text">
               <div class="legend-name" title="{{ asm_a.name }}">A — {{ asm_a.name }}</div>
               <span class="legend-lifecycle" data-lc="{{ asm_a.lifecycle }}">
                 {{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm_a.lifecycle, asm_a.lifecycle) }}
@@ -286,7 +287,7 @@
           </div>
           <div class="legend-item">
             <div class="legend-swatch legend-swatch-b"></div>
-            <div>
+            <div class="legend-text">
               <div class="legend-name" title="{{ asm_b.name }}">B — {{ asm_b.name }}</div>
               <span class="legend-lifecycle" data-lc="{{ asm_b.lifecycle }}">
                 {{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm_b.lifecycle, asm_b.lifecycle) }}

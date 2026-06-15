@@ -8,7 +8,7 @@ Self-hosted Flask web app for tracking compliance against CIS Controls v8.1.2 (1
 
 - **Backend**: Python 3 + Flask >= 3.0, SQLite 3 (auto-created as `librevig.db`)
 - **Frontend**: Vanilla JS, Jinja2 server-side rendering, inline CSS with CSS custom properties
-- **No build step**: All frontend assets are inline in `templates/index.html`
+- **No build step**: All frontend assets are inline in the templates; `templates/base.html` holds the layout shell, design-system tokens (`:root` / `[data-theme]`), and shared component CSS, which page templates extend
 
 ## Running the App
 
@@ -28,7 +28,10 @@ python3 app.py
 |---|---|
 | `app.py` | Flask routes, DB init, API endpoints |
 | `cis_data.json` | Static CIS Controls v8.1.2 dataset (loaded at startup) |
-| `templates/index.html` | Entire UI: Jinja2 + vanilla JS + inline CSS (~1200 lines) |
+| `templates/base.html` | Layout shell + design-system tokens (`:root` / `[data-theme]`) + shared component CSS; all pages extend it |
+| `templates/_sidebar.html` | Shared project/assessment navigation sidebar (included by page templates) |
+| `templates/assessment.html` | Per-assessment safeguard view (Jinja2 + vanilla JS + inline CSS) |
+| `templates/risk_register.html`, `compare.html`, `home.html`, `members.html`, `users.html` | Other page views, each extending `base.html` |
 | `DESIGN_SYSTEM.md` | **Mandatory reference** for all UI work — CSS tokens, typography, spacing |
 | `project.md` | Internal architecture and API documentation |
 

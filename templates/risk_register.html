@@ -3,26 +3,7 @@
 {% block title %}Risk Register — {{ project.name }} — LibreVigilant{% endblock %}
 
 {% block extra_styles %}
-  :root, [data-theme="dark"] {
-    --status-na-bg: #2A2A2B; --status-na-color: #C7C4D6;
-    --status-ni-bg: #2D1B1B; --status-ni-color: #FFB4AB;
-    --status-pa-bg: #2D2208; --status-pa-color: #D29922;
-    --status-im-bg: #0D2818; --status-im-color: #4EDEA3;
-    --status-np-bg: #1C1B1C; --status-np-color: #918F9F;
-    --ig1-color: #A5B4FC;
-    --ig2-color: #93C5FD;
-    --ig3-color: #C4B5FD;
-  }
-  [data-theme="light"] {
-    --status-na-bg: #EEEEF0; --status-na-color: #44424F;
-    --status-ni-bg: #FFDAD6; --status-ni-color: #BA1A1A;
-    --status-pa-bg: #FFF3D6; --status-pa-color: #B45309;
-    --status-im-bg: #D4F8EC; --status-im-color: #007650;
-    --status-np-bg: #F2F2F3; --status-np-color: #76737F;
-    --ig1-color: #4338CA;
-    --ig2-color: #1D4ED8;
-    --ig3-color: #6D28D9;
-  }
+  /* IG + status colour tokens live in base.html :root */
 
   .rr-main { padding: 1.75rem 2rem 3rem; overflow-y: auto; }
 
@@ -577,16 +558,16 @@
 
   {% if user_role in ('admin', 'editor') %}
   <div class="audit-section" style="margin:1.5rem 0 2rem;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
-    <button class="audit-header collapsed" id="rrAuditToggle" onclick="toggleRrAudit()" style="display:flex;align-items:center;gap:0.5rem;padding:0.65rem 1rem;background:var(--surface-2);cursor:pointer;user-select:none;font-weight:600;font-size:0.88rem;border:none;width:100%;text-align:left;color:var(--text-primary);">
+    <button class="audit-header collapsed" id="rrAuditToggle" onclick="toggleRrAudit()" style="display:flex;align-items:center;gap:0.5rem;padding:0.65rem 1rem;background:var(--surface-low);cursor:pointer;user-select:none;font-weight:600;font-size:0.88rem;border:none;width:100%;text-align:left;color:var(--text-primary);">
       Activity Log
       <span style="margin-left:auto;transition:transform 0.2s;font-size:0.7rem;color:var(--text-muted);" id="rrAuditChevron">&#9660;</span>
     </button>
     <div id="rrAuditBody" style="display:none;">
       <ul id="rrAuditList" style="list-style:none;margin:0;padding:0;font-size:0.82rem;"></ul>
-      <div id="rrAuditFooter" style="display:none;flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--text-muted);background:var(--surface-2);">
-        <button id="rrAuditPrev" onclick="loadRrAudit(rrAuditPage-1)" disabled style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);cursor:pointer;">&#8592; Prev</button>
+      <div id="rrAuditFooter" style="display:none;align-items:center;gap:0.75rem;padding:0.5rem 1rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--text-muted);background:var(--surface-low);">
+        <button id="rrAuditPrev" onclick="loadRrAudit(rrAuditPage-1)" disabled style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);cursor:pointer;">&#8592; Prev</button>
         <span id="rrAuditPageInfo"></span>
-        <button id="rrAuditNext" onclick="loadRrAudit(rrAuditPage+1)" style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);cursor:pointer;">Next &#8594;</button>
+        <button id="rrAuditNext" onclick="loadRrAudit(rrAuditPage+1)" style="padding:0.2rem 0.6rem;font-size:0.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);cursor:pointer;">Next &#8594;</button>
       </div>
     </div>
   </div>

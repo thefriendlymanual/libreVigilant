@@ -3,30 +3,12 @@
 {% block title %}{{ active_assessment.name }} — LibreVigilant{% endblock %}
 
 {% block extra_styles %}
-    /* Status tokens (dark) — legacy assessment view */
-    :root, [data-theme="dark"] {
-      --ig1-color: #A5B4FC;
-      --ig2-color: #93C5FD;
-      --ig3-color: #C4B5FD;
+    /* Assessment-view aliases — colour tokens live in base.html :root */
+    :root, [data-theme="dark"], [data-theme="light"] {
       --color-info: var(--primary);
       --color-purple: var(--ig3-color);
       --brand-accent: var(--primary);
       --brand-primary: var(--primary-container);
-      --status-na-bg: #2A2A2B; --status-na-color: #C7C4D6; --status-na-border: transparent;
-      --status-ni-bg: #2D1B1B; --status-ni-color: #FFB4AB; --status-ni-border: transparent;
-      --status-pa-bg: #2D2208; --status-pa-color: #D29922; --status-pa-border: transparent;
-      --status-im-bg: #0D2818; --status-im-color: #4EDEA3; --status-im-border: transparent;
-      --status-np-bg: #1C1B1C; --status-np-color: #918F9F; --status-np-border: transparent;
-    }
-    [data-theme="light"] {
-      --ig1-color: #4338CA;
-      --ig2-color: #1D4ED8;
-      --ig3-color: #6D28D9;
-      --status-na-bg: #EEEEF0; --status-na-color: #44424F; --status-na-border: transparent;
-      --status-ni-bg: #FFDAD6; --status-ni-color: #BA1A1A; --status-ni-border: transparent;
-      --status-pa-bg: #FFF3D6; --status-pa-color: #B45309; --status-pa-border: transparent;
-      --status-im-bg: #D4F8EC; --status-im-color: #007650; --status-im-border: transparent;
-      --status-np-bg: #F2F2F3; --status-np-color: #76737F; --status-np-border: transparent;
     }
 
     /* Layout tweaks for assessment view inside main column */
@@ -261,18 +243,12 @@
       font-weight: 600; white-space: nowrap;
       text-transform: uppercase; letter-spacing: 0.08em;
     }
-    .fn-Govern   { background:#2D1F00; color:#D29922; }
-    .fn-Identify { background:#39485A; color:#B9C8DE; }
-    .fn-Protect  { background:#0D2818; color:#4EDEA3; }
-    .fn-Detect   { background:#2D1B1B; color:#FFB4AB; }
-    .fn-Respond  { background:#2D1500; color:#FBA06B; }
-    .fn-Recover  { background:#0A2D2D; color:#7DD3FC; }
-    [data-theme="light"] .fn-Govern   { background:#FEF3C7; color:#92400E; }
-    [data-theme="light"] .fn-Identify { background:#D4E4FA; color:#1E40AF; }
-    [data-theme="light"] .fn-Protect  { background:#D4F8EC; color:#007650; }
-    [data-theme="light"] .fn-Detect   { background:#FFDAD6; color:#BA1A1A; }
-    [data-theme="light"] .fn-Respond  { background:#FFEDD5; color:#9A3412; }
-    [data-theme="light"] .fn-Recover  { background:#CFFAFE; color:#155E75; }
+    .fn-Govern   { background:var(--fn-govern-bg);   color:var(--fn-govern-color); }
+    .fn-Identify { background:var(--fn-identify-bg); color:var(--fn-identify-color); }
+    .fn-Protect  { background:var(--fn-protect-bg);  color:var(--fn-protect-color); }
+    .fn-Detect   { background:var(--fn-detect-bg);   color:var(--fn-detect-color); }
+    .fn-Respond  { background:var(--fn-respond-bg);  color:var(--fn-respond-color); }
+    .fn-Recover  { background:var(--fn-recover-bg);  color:var(--fn-recover-color); }
 
     .ac-badge { background: var(--surface-high); color: var(--on-surface-variant); }
     .ig1 { background:#1F1B47; color:var(--ig1-color); }
@@ -427,13 +403,13 @@
     .audit-header {
       display: flex; align-items: center; gap: 0.5rem;
       padding: 0.65rem 1rem;
-      background: var(--surface-2);
+      background: var(--surface-low);
       cursor: pointer; user-select: none;
       font-weight: 600; font-size: 0.88rem;
       border: none; width: 100%; text-align: left;
       color: var(--text-primary);
     }
-    .audit-header:hover { background: var(--surface-3); }
+    .audit-header:hover { background: var(--surface-high); }
     .audit-chevron {
       margin-left: auto; transition: transform 0.2s;
       font-size: 0.7rem; color: var(--text-muted);
@@ -462,12 +438,12 @@
       padding: 0.5rem 1rem;
       border-top: 1px solid var(--border);
       font-size: 0.8rem; color: var(--text-muted);
-      background: var(--surface-2);
+      background: var(--surface-low);
     }
     .audit-footer button {
       padding: 0.2rem 0.6rem; font-size: 0.78rem;
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface-1); color: var(--text-primary); cursor: pointer;
+      background: var(--surface); color: var(--text-primary); cursor: pointer;
     }
     .audit-footer button:disabled { opacity: 0.4; cursor: default; }
     .audit-empty { padding: 1.5rem 1rem; color: var(--text-muted); font-size: 0.84rem; text-align: center; }
