@@ -1290,11 +1290,16 @@ def _build_risk_rows(project_id):
             "SELECT ri.id, ri.safeguard_id, ri.treatment, ri.owner, ri.target_date, "
             "       ri.notes, ri.status, ri.source_assessment_id, ri.created_at, "
             "       ri.updated_at, a.name AS source_assessment_name, "
-            "       asg.status AS current_status "
+            "       asg.status AS current_status, "
+            "       la.name AS latest_assessment_name "
             "FROM risk_items ri "
             "LEFT JOIN assessments a ON a.id = ri.source_assessment_id "
+            "LEFT JOIN assessments la ON la.id = ("
+            "  SELECT id FROM assessments WHERE project_id = ri.project_id"
+            "  ORDER BY created_at DESC LIMIT 1"
+            ") "
             "LEFT JOIN assessment_safeguards asg "
-            "       ON asg.assessment_id = ri.source_assessment_id "
+            "       ON asg.assessment_id = la.id "
             "       AND asg.safeguard_id = ri.safeguard_id "
             "WHERE ri.project_id = ? "
             "ORDER BY ri.created_at",
@@ -1326,6 +1331,8 @@ def _build_risk_rows(project_id):
             "status": r["status"],
             "source_assessment_id": r["source_assessment_id"],
             "source_assessment_name": r["source_assessment_name"] or "",
+            "latest_assessment_name": r["latest_assessment_name"] or "",
+            "status_improved": (current_status == "implemented" and r["status"] == "open"),
             "weight": weight,
         })
 

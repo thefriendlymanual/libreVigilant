@@ -345,6 +345,23 @@
     white-space: nowrap;
   }
 
+  .rr-resolved-badge {
+    display: inline-block;
+    margin-top: 0.25rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: default;
+  }
+  [data-theme="dark"] .rr-resolved-badge {
+    background: #451a03;
+    color: #fcd34d;
+  }
+
   .save-flash {
     font-size: 0.68rem;
     color: var(--color-success);
@@ -407,7 +424,7 @@
             <th>Safeguard</th>
             <th>Title / Control</th>
             <th>IG</th>
-            <th>Status</th>
+            <th title="Status as of most recent assessment">Status</th>
             <th>Treatment</th>
             <th>Owner</th>
             <th>Target Date</th>
@@ -439,6 +456,9 @@
               <span class="status-badge s-{{ item.current_status }}">
                 {{ {'not_assessed':'Not Assessed','not_implemented':'Not Impl.','partial':'Partial','implemented':'Implemented','not_applicable':'N/A'}.get(item.current_status, item.current_status) }}
               </span>
+              {% if item.status_improved %}
+              <span class="rr-resolved-badge" title="Implemented in {{ item.latest_assessment_name or 'latest assessment' }}">✓ Resolved in latest</span>
+              {% endif %}
             </td>
             <td class="field-cell" style="min-width:110px">
               {% if user_role in ('admin', 'editor') %}
