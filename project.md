@@ -272,12 +272,13 @@ priority. Sidebar work is the highest-value cluster.
   `@media (max-width: 768px)` to collapse the shell to a single column with the sidebar as
   an overlay drawer (reuse the existing collapse state machine).
 
-**Accessibility**
+**Accessibility** — completed in "Accessibility: skip link, nav landmark, focus ring, reduced-motion, aria-label"
 
-- Wrap the sidebar in `<nav aria-label="Workspace">`; add a `<label>`/`aria-label` to the
-  risk-register import `<select>`; add a global `:focus-visible` ring (using
-  `--surface-tint`); add a skip-to-content link before the navbar.
-- Honour `prefers-reduced-motion` for the theme/grid/transform transitions.
+- Sidebar wrapped in `<nav aria-label="Workspace">` (replaces `<aside>`).
+- Skip-to-content link (`<a href="#main-content" class="skip-link">`) added as first `<body>` child in `base.html`; all page templates (`home`, `assessment`, `risk_register`, `compare`, `members`, `users`) updated with `id="main-content"` on their `<main>` element.
+- Global `:focus-visible` ring (2px solid `--surface-tint`, offset 2px) added to base styles.
+- `aria-label="Select assessment to import"` added to risk-register import `<select>`.
+- `@media (prefers-reduced-motion: reduce)` block added to base styles, suppressing all transitions and animations.
 
 **Token hygiene** — completed in "Token hygiene: replace hardcoded hex values with CSS custom properties"
 

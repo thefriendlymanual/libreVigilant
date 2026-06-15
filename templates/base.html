@@ -170,6 +170,27 @@
     ============================================= */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :focus-visible {
+      outline: 2px solid var(--surface-tint);
+      outline-offset: 2px;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 0.5rem;
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      padding: 0.5rem 1rem;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      z-index: 9999;
+      transition: top 0.1s;
+    }
+    .skip-link:focus { top: 0; }
+
     body {
       background: var(--bg-page);
       color: var(--text-primary);
@@ -748,10 +769,19 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent);
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+
     {% block extra_styles %}{% endblock %}
   </style>
 </head>
 <body>
+<!-- Pages should add id="main-content" to their .main element for this skip link to work -->
+<a href="#main-content" class="skip-link">Skip to content</a>
 
 <nav class="app-nav">
   <a href="/" class="app-nav-brand">

@@ -451,7 +451,7 @@
 <div class="shell" id="shell">
   {% include "_sidebar.html" %}
 
-  <main class="main" data-read-only="{{ 'true' if read_only else 'false' }}">
+  <main class="main" id="main-content" data-read-only="{{ 'true' if read_only else 'false' }}">
     <div class="asm-header">
       <h1>{{ active_assessment.name }}</h1>
       <span class="lifecycle-badge" data-lc="{{ active_assessment.lifecycle }}">{{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(active_assessment.lifecycle, active_assessment.lifecycle) }}</span>

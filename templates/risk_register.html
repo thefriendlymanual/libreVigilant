@@ -360,7 +360,7 @@
 <div class="shell" id="shell">
   {% include "_sidebar.html" %}
 
-  <main class="rr-main">
+  <main class="rr-main" id="main-content">
 
     <div class="rr-header">
       <div>
@@ -370,7 +370,7 @@
       <div class="rr-header-actions">
         {% if user_role in ('admin', 'editor') %}
         <div class="rr-import-form">
-          <select id="importAsmSelect">
+          <select id="importAsmSelect" aria-label="Select assessment to import">
             <option value="">Select assessment…</option>
             {% for asm in assessments %}
             <option value="{{ asm.id }}">{{ asm.name }} ({{ {'draft':'Draft','review':'Review','completed':'Completed'}.get(asm.lifecycle, asm.lifecycle) }})</option>
