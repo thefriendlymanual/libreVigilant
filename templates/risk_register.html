@@ -132,6 +132,8 @@
     color: var(--text-muted);
   }
 
+  .filter-search { max-width: 160px; }
+
   .rr-notice {
     background: color-mix(in srgb, var(--tertiary-container) 40%, transparent);
     border-radius: var(--radius-sm);
@@ -407,10 +409,44 @@
     <div class="rr-notice" id="rrNotice"></div>
 
     <div class="rr-toolbar">
-      <div class="rr-filter-group">
-        <button class="filter-btn active" onclick="applyFilter('open')">Open</button>
-        <button class="filter-btn" onclick="applyFilter('closed')">Closed</button>
-        <button class="filter-btn" onclick="applyFilter('all')">All</button>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <div class="rr-filter-group">
+          <button class="filter-btn active" onclick="setStatusFilter('open')">Open</button>
+          <button class="filter-btn" onclick="setStatusFilter('closed')">Closed</button>
+          <button class="filter-btn" onclick="setStatusFilter('all')">All</button>
+        </div>
+        <select class="filter-select" id="fIG" onchange="applyFilters()">
+          <option value="all">All IGs</option>
+          <option value="ig1">IG1 only</option>
+          <option value="ig2">IG1 + IG2</option>
+          <option value="ig3">All (IG1+2+3)</option>
+        </select>
+        <select class="filter-select" id="fCurStatus" onchange="applyFilters()">
+          <option value="all">Any Status</option>
+          <option value="not_implemented">Not Implemented</option>
+          <option value="partial">Partial</option>
+          <option value="implemented">Implemented</option>
+          <option value="not_assessed">Not Assessed</option>
+        </select>
+        <select class="filter-select" id="fTreatment" onchange="applyFilters()">
+          <option value="all">Any Treatment</option>
+          <option value="">Unassigned</option>
+          <option value="accept">Accept</option>
+          <option value="mitigate">Mitigate</option>
+          <option value="transfer">Transfer</option>
+          <option value="avoid">Avoid</option>
+          <option value="remediate">Remediate</option>
+        </select>
+        <select class="filter-select" id="fOwner" onchange="applyFilters()">
+          <option value="all">Any Owner</option>
+        </select>
+        <select class="filter-select" id="fSort" onchange="applySort()">
+          <option value="weight">Sort: Weight</option>
+          <option value="target_asc">Sort: Target ↑</option>
+          <option value="target_desc">Sort: Target ↓</option>
+          <option value="safeguard_id">Sort: Safeguard ID</option>
+        </select>
+        <input class="filter-search" type="search" id="fSearch" placeholder="Search…" oninput="applyFilters()">
       </div>
       <span class="rr-count" id="rrCount"></span>
     </div>
@@ -435,7 +471,18 @@
         </thead>
         <tbody>
           {% for item in items %}
-          <tr data-item-status="{{ item.status }}" data-item-id="{{ item.id }}" class="{{ 'row-closed' if item.status == 'closed' else '' }}">
+          <tr data-item-status="{{ item.status }}" data-item-id="{{ item.id }}"
+              data-ig1="{{ 'true' if item.ig1 else 'false' }}"
+              data-ig2="{{ 'true' if item.ig2 else 'false' }}"
+              data-ig3="{{ 'true' if item.ig3 else 'false' }}"
+              data-treatment="{{ item.treatment or '' }}"
+              data-owner="{{ item.owner|lower if item.owner else '' }}"
+              data-current-status="{{ item.current_status or '' }}"
+              data-target-date="{{ item.target_date or '' }}"
+              data-rank="{{ item.rank }}"
+              data-safeguard-id="{{ item.display_id }}"
+              data-search="{{ item.display_id|lower }} {{ item.title|lower }} {{ (item.notes or '')|lower }} {{ (item.owner or '')|lower }}"
+              class="{{ 'row-closed' if item.status == 'closed' else '' }}">
             <td class="rr-rank">{{ item.rank }}</td>
             <td class="rr-sg-id">{{ item.display_id }}</td>
             <td>
@@ -578,24 +625,100 @@ function apiHeaders() {
   return { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF };
 }
 
-// --- Filter ---
+// --- Filter & Sort ---
 let currentFilter = 'open';
+let originalRowOrder = [];
 
-function applyFilter(f) {
+function igRequired(igFilter) {
+  const igKeys = { all: [], ig1: ['ig1'], ig2: ['ig1', 'ig2'], ig3: ['ig1', 'ig2', 'ig3'] };
+  return igKeys[igFilter] || [];
+}
+
+function setStatusFilter(f) {
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.textContent.toLowerCase() === f || (f === 'all' && btn.textContent === 'All'));
   });
+  applyFilters();
+}
+
+function applyFilters() {
+  const fIG = document.getElementById('fIG') ? document.getElementById('fIG').value : 'all';
+  const fCurStatus = document.getElementById('fCurStatus') ? document.getElementById('fCurStatus').value : 'all';
+  const fTreatment = document.getElementById('fTreatment') ? document.getElementById('fTreatment').value : 'all';
+  const fOwner = document.getElementById('fOwner') ? document.getElementById('fOwner').value : 'all';
+  const fSearch = (document.getElementById('fSearch') ? document.getElementById('fSearch').value : '').toLowerCase().trim();
+  const required = igRequired(fIG);
+
   const rows = document.querySelectorAll('#rrTable tbody tr');
   let visible = 0;
   rows.forEach(row => {
-    const status = row.dataset.itemStatus;
-    const show = f === 'all' || status === f;
+    let show = true;
+    // Register status (open/closed/all)
+    if (currentFilter !== 'all' && row.dataset.itemStatus !== currentFilter) show = false;
+    // IG level
+    if (show && required.length > 0 && !required.some(k => row.dataset[k] === 'true')) show = false;
+    // Current assessment status
+    if (show && fCurStatus !== 'all' && row.dataset.currentStatus !== fCurStatus) show = false;
+    // Treatment (empty string = unassigned)
+    if (show && fTreatment !== 'all' && row.dataset.treatment !== fTreatment) show = false;
+    // Owner
+    if (show && fOwner !== 'all' && row.dataset.owner !== fOwner) show = false;
+    // Search
+    if (show && fSearch && !(row.dataset.search || '').includes(fSearch)) show = false;
+
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   });
   const countEl = document.getElementById('rrCount');
   if (countEl) countEl.textContent = visible + ' item' + (visible === 1 ? '' : 's');
+}
+
+function applySort() {
+  const fSort = document.getElementById('fSort').value;
+  const tbody = document.querySelector('#rrTable tbody');
+  if (!tbody) return;
+  const rows = [...tbody.querySelectorAll('tr')];
+
+  rows.sort((a, b) => {
+    if (fSort === 'weight') {
+      return parseInt(a.dataset.rank || 0) - parseInt(b.dataset.rank || 0);
+    }
+    if (fSort === 'safeguard_id') {
+      return (a.dataset.safeguardId || '').localeCompare(b.dataset.safeguardId || '');
+    }
+    if (fSort === 'target_asc') {
+      const da = a.dataset.targetDate || '9999-99-99';
+      const db = b.dataset.targetDate || '9999-99-99';
+      return da < db ? -1 : da > db ? 1 : 0;
+    }
+    if (fSort === 'target_desc') {
+      const da = a.dataset.targetDate || '';
+      const db = b.dataset.targetDate || '';
+      return da > db ? -1 : da < db ? 1 : 0;
+    }
+    return 0;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  applyFilters();
+}
+
+function populateOwnerFilter() {
+  const owners = new Set();
+  document.querySelectorAll('#rrTable tbody tr').forEach(row => {
+    const o = row.dataset.owner;
+    if (o) owners.add(o);
+  });
+  const sel = document.getElementById('fOwner');
+  if (!sel) return;
+  // keep first "Any Owner" option
+  while (sel.options.length > 1) sel.remove(1);
+  [...owners].sort().forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o;
+    opt.textContent = o.charAt(0).toUpperCase() + o.slice(1);
+    sel.appendChild(opt);
+  });
 }
 
 // --- Import ---
@@ -697,6 +820,27 @@ async function saveField(itemId, field, value) {
       body: JSON.stringify({ [field]: value }),
     });
     if (!res.ok) throw new Error('Save failed');
+    // Keep data attributes in sync for live filtering
+    const row = document.querySelector('#rrTable tbody tr[data-item-id="' + itemId + '"]');
+    if (row) {
+      if (field === 'treatment') row.dataset.treatment = value;
+      if (field === 'owner') {
+        row.dataset.owner = value.toLowerCase();
+        // Rebuild search attr
+        const sgId = (row.dataset.safeguardId || '').toLowerCase();
+        const title = (row.querySelector('.rr-sg-title') ? row.querySelector('.rr-sg-title').textContent : '').toLowerCase();
+        const notes = (row.querySelector('.rr-notes-input') ? row.querySelector('.rr-notes-input').value : '').toLowerCase();
+        row.dataset.search = sgId + ' ' + title + ' ' + notes + ' ' + value.toLowerCase();
+        populateOwnerFilter();
+      }
+      if (field === 'target_date') row.dataset.targetDate = value;
+      if (field === 'notes') {
+        const sgId = (row.dataset.safeguardId || '').toLowerCase();
+        const title = (row.querySelector('.rr-sg-title') ? row.querySelector('.rr-sg-title').textContent : '').toLowerCase();
+        const owner = (row.dataset.owner || '');
+        row.dataset.search = sgId + ' ' + title + ' ' + value.toLowerCase() + ' ' + owner;
+      }
+    }
   } catch (e) {
     console.error('saveField error:', e);
   }
@@ -715,7 +859,7 @@ async function closeItem(itemId, btn) {
     btn.className = 'rr-action-btn reopen-btn';
     btn.innerHTML = '&#8635; Reopen';
     btn.onclick = () => reopenItem(itemId, btn);
-    applyFilter(currentFilter);
+    applyFilters();
   } catch (e) { console.error(e); }
 }
 
@@ -731,7 +875,7 @@ async function reopenItem(itemId, btn) {
     btn.className = 'rr-action-btn close-btn';
     btn.innerHTML = '&#10003; Close';
     btn.onclick = () => closeItem(itemId, btn);
-    applyFilter(currentFilter);
+    applyFilters();
   } catch (e) { console.error(e); }
 }
 
@@ -747,7 +891,8 @@ function showNotice(msg, isError) {
 }
 
 // Init
-applyFilter('open');
+populateOwnerFilter();
+applyFilters();
 
 {% if user_role in ('admin', 'editor') %}
 // --- Activity Log ---

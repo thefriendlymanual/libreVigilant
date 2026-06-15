@@ -220,7 +220,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Risk register (project-scoped, import, treatments, close/reopen, CSV export) | ✅ Done |
 | Risk register: reconciliation on import (surface resolved risks for closure) | ✅ Done |
 | Risk register: latest-assessment status join (current status always from newest assessment) | ✅ Done |
-| Risk register: full filter/sort bar (IG, treatment, owner, current status, target date sort) | 🔲 Todo |
+| Risk register: full filter/sort bar (IG, treatment, owner, current status, target date sort) | ✅ Done |
 | Cross-assessment comparison (dual-polygon radar + delta table) | ✅ Done |
 | User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
 | Risk register audit log (track treatment/close/reopen changes per project) | ✅ Done |

@@ -651,6 +651,31 @@
       line-height: 1.55;
     }
 
+    /* Shared filter controls — used by assessment and risk register toolbars */
+    .filter-select, .filter-search {
+      font-size: 0.76rem;
+      padding: 0.28rem 0.6rem;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-sm);
+      background: var(--surface-low);
+      color: var(--on-surface);
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+      font-family: var(--font-body);
+    }
+    .filter-select {
+      appearance: none; padding-right: 1.5rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+    }
+    .filter-select option { background: var(--surface); color: var(--on-surface); }
+    .filter-search { min-width: 0; }
+    .filter-select:focus, .filter-search:focus {
+      border-color: var(--surface-tint);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent);
+    }
+
     {% block extra_styles %}{% endblock %}
   </style>
 </head>
