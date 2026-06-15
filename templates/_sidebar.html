@@ -26,6 +26,7 @@
           <div class="sidebar-empty">No assessments yet.</div>
         {% endif %}
 
+        <div class="sidebar-section-label">Project tools</div>
         <a class="asm-link risk-register-link"
            href="{{ url_for('risk_register', project_id=project.id) }}"
            data-active="{{ 'true' if (active_project_id | default(None)) == project.id and request.endpoint == 'risk_register' else 'false' }}">

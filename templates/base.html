@@ -481,6 +481,7 @@
     .asm-link[data-active="true"] {
       background: color-mix(in srgb, var(--primary-container) 30%, transparent);
       color: var(--on-surface);
+      box-shadow: inset 3px 0 0 var(--primary);
     }
     .asm-name {
       overflow: hidden;
@@ -521,6 +522,16 @@
       font-size: 0.75rem;
       color: var(--text-muted);
       font-style: italic;
+    }
+
+    .sidebar-section-label {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+      padding: 0.6rem 0.7rem 0.2rem 1.4rem;
+      margin-top: 0.25rem;
     }
 
     .new-asm {

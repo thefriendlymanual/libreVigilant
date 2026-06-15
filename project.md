@@ -250,12 +250,12 @@ priority. Sidebar work is the highest-value cluster.
   leaving an empty strip. Either build a real icon rail — per-project initial/icon plus
   an assessment-count indicator, with a hover/click flyout — or drop the collapse toggle
   entirely. A half-collapsed state that hides 100% of content is worse than none.
-- **Separate assessments from project tools.** Risk Register, Compare, and Members use
+- ✅ **Separate assessments from project tools.** Risk Register, Compare, and Members use
   the same `.asm-link` styling and indentation as actual assessments, so tools read as if
   they were assessments. Group them under a small uppercase `label-sm` sub-heading
   ("Project tools") or give them a distinct treatment, and keep "+ New assessment" with
   the assessment list.
-- **Strengthen the active-nav state.** The current 30%-mix background is faint
+- ✅ **Strengthen the active-nav state.** The current 30%-mix background is faint
   (especially in light mode where `--primary-container` is already pale). Add a 3px
   `--primary` left accent bar to the active link and bump the background.
 - **Replace glyph icons with real SVG icons.** The leading `■ ▲ ☉` numeric entities are
