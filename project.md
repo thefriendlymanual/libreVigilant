@@ -281,6 +281,14 @@ priority. Sidebar work is the highest-value cluster.
 - `aria-label="Select assessment to import"` added to risk-register import `<select>`.
 - `@media (prefers-reduced-motion: reduce)` block added to base styles, suppressing all transitions and animations.
 
+**Risk register horizontal scroll** ✅ Done
+
+- Removed `overflow-y: auto` from `.rr-main` and `overflow-x: auto` from `.rr-table-wrap`.
+  CSS spec forces `overflow-x` to `auto` whenever `overflow-y` is `auto`, making `.rr-main`
+  a scroll container that clipped the table horizontally. Removing both lets the table overflow
+  all the way to the browser, which shows its own native horizontal scrollbar at the bottom
+  of the viewport. Implemented in `templates/risk_register.html`.
+
 **Token hygiene** — completed in "Token hygiene: replace hardcoded hex values with CSS custom properties"
 
 All previously identified hardcoded hex values replaced with CSS custom properties:
