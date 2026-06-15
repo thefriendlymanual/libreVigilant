@@ -36,6 +36,8 @@ or more Projects with a role per project.
     compare.html        Cross-assessment comparison (dual-polygon radar + delta table)
     error.html          Generic error page
   static/               (empty — all CSS/JS is inline in templates)
+  docs/
+    docs.md             User guide (canonical source; future /docs route will render this)
 ```
 
 ## How to Run
@@ -230,11 +232,11 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | UX review pass | ✅ Done — see `UX-REVIEW.md` |
 | Design-system consistency fixes (dead template removed, undefined vars, centralized tokens) | ✅ Done |
 | Compare legend: wrap long assessment names within the panel | ✅ Done |
-| UI improvements (sidebar, responsive, a11y) — see below | 🔲 Partial (responsive done) |
-| Production install guide (WSGI server) | 🔲 Todo |
+| UI improvements (sidebar, responsive, a11y) — see below | ✅ Done |
+| Production install guide (WSGI server) | 🔲 Todo — Docker Compose section in docs/docs.md stubbed |
 | Dockerfile + Docker Compose for Docker deployment | 🔲 Todo |
-| User documentation | 🔲 Todo |
-| In-app help (docs served inline, linked from UI) | 🔲 Todo |
+| User documentation | 🔲 In progress — `docs/docs.md` scaffolded, all sections written; Docker deployment sections stubbed pending Dockerfile |
+| In-app help (docs served inline, linked from UI) | 🔲 Todo — defer until docs.md is finalised; route + template pattern is designed |
 | GitHub icon + link to project repo in UI | 🔲 Todo |
 
 ### UI Improvements
