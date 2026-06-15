@@ -5,10 +5,28 @@
 
   {% for project in projects %}
     <div class="project-section" data-project-id="{{ project.id }}">
-      <button class="project-header" type="button" onclick="toggleProject({{ project.id }})">
-        <span class="project-chevron"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
-        <span class="asm-name">{{ project.name }}</span>
-      </button>
+      <div class="project-header-wrap">
+        <button class="project-header" type="button" onclick="toggleProject({{ project.id }})">
+          <span class="project-chevron"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></span>
+          <span class="asm-name">{{ project.name }}</span>
+        </button>
+        {% if current_user and current_user.role == 'admin' %}
+          <button class="project-menu-btn"
+                  type="button"
+                  aria-label="Project options"
+                  aria-expanded="false"
+                  onclick="toggleProjectMenu(this)"
+                  title="Project options">&#8943;</button>
+          <div class="project-dropdown">
+            <form method="POST"
+                  action="{{ url_for('delete_project', project_id=project.id) }}"
+                  onsubmit="return confirm('Delete \'{{ project.name }}\' and ALL its assessments and data? This cannot be undone.')">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <button type="submit" class="project-dropdown-item danger">Delete project</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
       <div class="project-body">
         {% if project.assessments %}
           {% for asm in project.assessments %}
@@ -59,13 +77,6 @@
             <input type="hidden" name="_csrf" value="{{ csrf_token }}">
             <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
             <button type="submit">Add</button>
-          </form>
-          <form method="POST"
-                action="{{ url_for('delete_project', project_id=project.id) }}"
-                style="margin-top:0.25rem;"
-                onsubmit="return confirm('Delete this project and ALL its assessments and data? This cannot be undone.')">
-            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-            <button type="submit" class="delete-project-btn">Delete project</button>
           </form>
         {% endif %}
       </div>

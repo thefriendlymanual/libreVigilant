@@ -258,10 +258,10 @@ priority. Sidebar work is the highest-value cluster.
   `--primary` left accent bar to the active link and bump the background.
 - ✅ **Replace glyph icons with real SVG icons.** Replaced `■ ▲ ☉` entities and `▾ ‹ ›`
   text glyphs with inline SVGs (`aria-hidden="true"`, `stroke-width="1.5"`, `currentColor`).
-- **Make "Delete project" safer.** It sits inline below "+ New assessment" with hover-only
-  danger styling — easy to misclick for a cascade delete. Move it into a project context
-  menu (⋯) or the Members/settings page, or give it persistent danger styling plus a
-  type-to-confirm.
+- ✅ **Make "Delete project" safer.** Moved into a ⋯ context menu button on the project
+  header (`.project-header-wrap`). The dropdown shows on hover/click and contains a
+  danger-styled "Delete project" item. `confirm()` dialog retained as a second confirmation
+  step. Dropdown closes on outside click.
 - **Add project/assessment search** once a workspace accumulates enough projects that the
   flat scroll becomes unwieldy.
 
@@ -282,6 +282,6 @@ priority. Sidebar work is the highest-value cluster.
 **Token hygiene** — completed in "Token hygiene: replace hardcoded hex values with CSS custom properties"
 
 All previously identified hardcoded hex values replaced with CSS custom properties:
-- `base.html`: `.app-nav-brand` and `.btn-nav` colours → `var(--on-surface)` / `var(--on-primary)`; `.delete-project-btn:hover` → `var(--color-danger)`; `.filter-select` SVG arrow fill uses theme-aware values (`%23918F9F` base, `%2344424F` light override).
+- `base.html`: `.app-nav-brand` and `.btn-nav` colours → `var(--on-surface)` / `var(--on-primary)`; `.filter-select` SVG arrow fill uses theme-aware values (`%23918F9F` base, `%2344424F` light override). (`.delete-project-btn` removed — replaced by `.project-dropdown-item.danger` which uses `var(--color-danger)`)
 - `risk_register.html`: `.rr-resolved-badge` → `color-mix(in srgb, var(--color-warning) 18%, transparent)` bg + `var(--color-warning)` text.
 - `assessment.html`: `.ig1/.ig2/.ig3` chip backgrounds → `color-mix(in srgb, var(--igN-color) 15%, transparent)`.

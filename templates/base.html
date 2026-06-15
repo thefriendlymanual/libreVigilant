@@ -584,20 +584,64 @@
       margin-top: 0.5rem;
     }
 
-    .delete-project-btn {
-      margin: 0.1rem 0.6rem 0.2rem 1.4rem;
+    /* Project context menu */
+    .project-header-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .project-menu-btn {
       background: transparent;
       border: none;
       color: var(--text-muted);
-      font-size: 0.68rem;
-      font-family: var(--font-body);
       cursor: pointer;
-      padding: 0.2rem 0;
-      text-align: left;
-      transition: color 0.15s;
-      opacity: 0.6;
+      width: 24px; height: 24px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+      line-height: 1;
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
     }
-    .delete-project-btn:hover { color: var(--color-danger); opacity: 1; }
+    .project-header-wrap:hover .project-menu-btn,
+    .project-menu-btn[aria-expanded="true"] {
+      opacity: 1;
+    }
+    .project-menu-btn:hover { background: var(--surface-high); color: var(--on-surface); }
+
+    .project-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 2px);
+      right: 0;
+      background: var(--surface-high);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-md);
+      z-index: 200;
+      min-width: 160px;
+      padding: 0.25rem 0;
+    }
+    .project-dropdown[data-open="true"] { display: block; }
+    .project-dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.45rem 0.85rem;
+      background: transparent;
+      border: none;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .project-dropdown-item:hover { background: var(--surface-bright); }
+    .project-dropdown-item.danger { color: var(--color-danger); }
+    .project-dropdown-item.danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
 
     /* =============================================
        MAIN CONTENT AREA
