@@ -230,7 +230,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | UX review pass | ✅ Done — see `UX-REVIEW.md` |
 | Design-system consistency fixes (dead template removed, undefined vars, centralized tokens) | ✅ Done |
 | Compare legend: wrap long assessment names within the panel | ✅ Done |
-| UI improvements (sidebar, responsive, a11y) — see below | 🔲 Todo |
+| UI improvements (sidebar, responsive, a11y) — see below | 🔲 Partial (responsive done) |
 | Production install guide (WSGI server) | 🔲 Todo |
 | Dockerfile + Docker Compose for Docker deployment | 🔲 Todo |
 | User documentation | 🔲 Todo |
@@ -265,12 +265,13 @@ priority. Sidebar work is the highest-value cluster.
 - **Add project/assessment search** once a workspace accumulates enough projects that the
   flat scroll becomes unwieldy.
 
-**Responsive**
+**Responsive** ✅ Done
 
-- The app shell (`.shell { grid-template-columns: 260px 1fr }`) has no breakpoint, so the
-  sidebar permanently eats 260px on phones/tablets and the assessment grid overflows. Add
-  `@media (max-width: 768px)` to collapse the shell to a single column with the sidebar as
-  an overlay drawer (reuse the existing collapse state machine).
+- At `max-width: 768px` the shell collapses to a single column. The sidebar becomes a
+  slide-in overlay drawer (fixed, z-index 150, `transform: translateX(-100%)`) toggled by
+  a hamburger button in the navbar. A semi-transparent backdrop closes the drawer on tap.
+  All existing sidebar JS (toggleProject, showNewAsm, etc.) is unchanged. Implemented in
+  `templates/base.html`.
 
 **Accessibility** — completed in "Accessibility: skip link, nav landmark, focus ring, reduced-motion, aria-label"
 

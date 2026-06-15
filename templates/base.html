@@ -769,6 +769,49 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface-tint) 20%, transparent);
     }
 
+    /* =============================================
+       RESPONSIVE — mobile drawer
+    ============================================= */
+    .btn-hamburger { display: none; }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 149;
+    }
+
+    @media (max-width: 768px) {
+      .btn-hamburger { display: inline-flex; }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 280px;
+        z-index: 150;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        padding-top: 1.25rem;
+      }
+      .sidebar[data-drawer-open="true"] {
+        transform: translateX(0);
+      }
+
+      .sidebar-backdrop[data-open="true"] {
+        display: block;
+      }
+
+      .main {
+        padding: 1.25rem 1rem 2rem;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         transition-duration: 0.01ms !important;
@@ -784,6 +827,9 @@
 <a href="#main-content" class="skip-link">Skip to content</a>
 
 <nav class="app-nav">
+  <button class="btn-nav btn-hamburger" id="sidebarDrawerToggle" aria-label="Open navigation" aria-expanded="false" onclick="toggleSidebarDrawer()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
   <a href="/" class="app-nav-brand">
     LibreVigilant
     <small>CIS Controls v8.1</small>
@@ -798,6 +844,8 @@
   <button class="btn-nav btn-theme" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
 </nav>
 
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebarDrawer()"></div>
+
 {% block content %}{% endblock %}
 
 <script>
@@ -809,6 +857,26 @@
     if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
   });
 })();
+
+function toggleSidebarDrawer() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const btn = document.getElementById('sidebarDrawerToggle');
+  if (!sidebar || !backdrop || !btn) return;
+  const isOpen = sidebar.dataset.drawerOpen === 'true';
+  sidebar.dataset.drawerOpen = isOpen ? 'false' : 'true';
+  backdrop.dataset.open = isOpen ? 'false' : 'true';
+  btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+  btn.setAttribute('aria-label', isOpen ? 'Open navigation' : 'Close navigation');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.sidebar .asm-link').forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 768) toggleSidebarDrawer();
+    });
+  });
+});
 
 function toggleTheme() {
   const isDark = document.documentElement.dataset.theme === 'dark';
