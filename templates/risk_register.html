@@ -140,6 +140,8 @@
     color: var(--tertiary);
     margin-bottom: 1rem;
     display: none;
+    position: relative;
+    z-index: 1001;
   }
   .rr-notice.show { display: block; }
 
@@ -528,9 +530,9 @@
 
 {% if user_role in ('admin', 'editor') %}
 <div id="reconcileOverlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
-  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:1.5rem;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:1rem;">
+  <div style="background:var(--surface-bright);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:1.5rem;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:1rem;">
     <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--text-primary);">Suggested Risk Closures</h3>
-    <p style="margin:0;font-size:0.875rem;color:var(--text-secondary);"><span id="reconcileCount"></span> open risk item(s) appear resolved in this assessment. Select which to close:</p>
+    <p style="margin:0;font-size:0.875rem;color:var(--text-secondary);"><span id="reconcileCount"></span> open risk item(s) are now implemented in this assessment. Select which to close:</p>
     <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
       <input type="checkbox" id="reconcileSelectAll" checked style="accent-color:var(--primary);"> Select all
     </label>
