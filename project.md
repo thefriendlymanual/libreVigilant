@@ -218,8 +218,16 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | CSV export | ✅ Done |
 | Audit log panel (collapsible, paginated) | ✅ Done |
 | Risk register (project-scoped, import, treatments, close/reopen, CSV export) | ✅ Done |
+| Risk register: reconciliation on import (surface resolved risks for closure) | ✅ Done |
+| Risk register: latest-assessment status join (current status always from newest assessment) | 🔲 Todo |
+| Risk register: full filter/sort bar (IG, treatment, owner, current status, target date sort) | 🔲 Todo |
 | Cross-assessment comparison (dual-polygon radar + delta table) | ✅ Done |
 | User management page (admin creates/edits/deletes users, assigns roles) | ✅ Done |
 | Risk register audit log (track treatment/close/reopen changes per project) | ✅ Done |
 | Project member management (project admins add/remove/change role of existing users) | ✅ Done |
 | UX review pass | 🔲 Deferred (after above) |
+| Production install guide (WSGI server) | 🔲 Todo |
+| Dockerfile + Docker Compose for Docker deployment | 🔲 Todo |
+| User documentation | 🔲 Todo |
+| In-app help (docs served inline, linked from UI) | 🔲 Todo |
+| GitHub icon + link to project repo in UI | 🔲 Todo |

@@ -525,6 +525,24 @@
 
   </main>
 </div>
+
+{% if user_role in ('admin', 'editor') %}
+<div id="reconcileOverlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:1.5rem;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:1rem;">
+    <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--text-primary);">Suggested Risk Closures</h3>
+    <p style="margin:0;font-size:0.875rem;color:var(--text-secondary);"><span id="reconcileCount"></span> open risk item(s) appear resolved in this assessment. Select which to close:</p>
+    <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:var(--text-secondary);cursor:pointer;">
+      <input type="checkbox" id="reconcileSelectAll" checked style="accent-color:var(--primary);"> Select all
+    </label>
+    <ul id="reconcileList" style="list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;"></ul>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="reconcileCancelBtn" class="btn-rr">Skip</button>
+      <button id="reconcileCloseBtn" class="btn-rr btn-rr-primary">Close Selected</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -581,14 +599,71 @@ async function importGaps() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Import failed');
-    showNotice(data.imported + ' new item' + (data.imported === 1 ? '' : 's') + ' imported (' + data.total_gaps + ' gaps found in assessment). Page will reload.');
-    setTimeout(() => location.reload(), 1500);
+    const importMsg = data.imported + ' new item' + (data.imported === 1 ? '' : 's') + ' imported (' + data.total_gaps + ' gaps found in assessment).';
+    if (data.suggested_closures && data.suggested_closures.length > 0) {
+      showNotice(importMsg);
+      showReconcileModal(data.suggested_closures);
+    } else {
+      showNotice(importMsg + ' Page will reload.');
+      setTimeout(() => location.reload(), 1500);
+    }
   } catch (e) {
     showNotice('Error: ' + e.message, true);
     importBtn.disabled = false;
     importBtn.textContent = 'Import Gaps';
   }
 }
+
+function showReconcileModal(items) {
+  const overlay = document.getElementById('reconcileOverlay');
+  const list = document.getElementById('reconcileList');
+  list.innerHTML = '';
+  items.forEach(item => {
+    const li = document.createElement('li');
+    li.style.cssText = 'display:flex;align-items:flex-start;gap:0.6rem;padding:0.45rem 0;border-bottom:1px solid var(--border);';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.dataset.itemId = item.id;
+    cb.style.cssText = 'margin-top:0.2rem;flex-shrink:0;accent-color:var(--primary);';
+    const label = document.createElement('label');
+    label.style.cssText = 'cursor:pointer;font-size:0.85rem;line-height:1.4;';
+    label.innerHTML = '<strong>' + item.display_id + '</strong> — ' + (item.title || '');
+    label.prepend(cb);
+    li.appendChild(label);
+    list.appendChild(li);
+  });
+  document.getElementById('reconcileCount').textContent = items.length;
+  overlay.style.display = 'flex';
+}
+
+document.getElementById('reconcileSelectAll').addEventListener('change', function() {
+  document.querySelectorAll('#reconcileList input[type=checkbox]').forEach(cb => cb.checked = this.checked);
+});
+
+document.getElementById('reconcileCloseBtn').addEventListener('click', async function() {
+  const checks = [...document.querySelectorAll('#reconcileList input[type=checkbox]')].filter(cb => cb.checked);
+  if (!checks.length) { document.getElementById('reconcileOverlay').style.display = 'none'; location.reload(); return; }
+  this.disabled = true;
+  this.textContent = 'Closing…';
+  const errs = [];
+  for (const cb of checks) {
+    try {
+      const res = await fetch('/api/projects/' + PROJECT_ID + '/risk-items/' + cb.dataset.itemId + '/close', {
+        method: 'POST', headers: apiHeaders(),
+      });
+      if (!res.ok) errs.push(cb.dataset.itemId);
+    } catch { errs.push(cb.dataset.itemId); }
+  }
+  if (errs.length) showNotice('Some items could not be closed. Page will reload.', true);
+  document.getElementById('reconcileOverlay').style.display = 'none';
+  location.reload();
+});
+
+document.getElementById('reconcileCancelBtn').addEventListener('click', function() {
+  document.getElementById('reconcileOverlay').style.display = 'none';
+  location.reload();
+});
 {% endif %}
 
 // --- Save field ---

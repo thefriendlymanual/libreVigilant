@@ -1478,7 +1478,29 @@ def api_risk_import(project_id):
                 _log_project(conn, project_id, "risk_item_imported", sg_id=row["safeguard_id"])
         conn.commit()
 
-    return jsonify({"imported": imported, "total_gaps": len(gaps)})
+    with get_db() as conn:
+        resolved = conn.execute(
+            "SELECT ri.id, ri.safeguard_id "
+            "FROM risk_items ri "
+            "JOIN assessment_safeguards ags "
+            "  ON ags.safeguard_id = ri.safeguard_id AND ags.assessment_id = :asm_id "
+            "WHERE ri.project_id = :project_id "
+            "  AND ri.status = 'open' "
+            "  AND ags.status = 'implemented'",
+            {"asm_id": asm_id, "project_id": project_id},
+        ).fetchall()
+
+    suggested_closures = []
+    for row in resolved:
+        sg = _SG_INDEX.get(row["safeguard_id"], {})
+        suggested_closures.append({
+            "id": row["id"],
+            "safeguard_id": row["safeguard_id"],
+            "display_id": _sg_display_id(row["safeguard_id"]),
+            "title": sg.get("title", ""),
+        })
+
+    return jsonify({"imported": imported, "total_gaps": len(gaps), "suggested_closures": suggested_closures})
 
 
 @app.route("/api/projects/<int:project_id>/risk-items/<int:item_id>", methods=["POST"])
