@@ -161,6 +161,9 @@
 
       --navbar-bg: #131314;
     }
+    [data-theme="light"] .filter-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2344424F'/%3E%3C/svg%3E");
+    }
 
     /* =============================================
        BASE
@@ -200,7 +203,7 @@
       font-family: var(--font-display);
       font-size: 1rem;
       font-weight: 700;
-      color: #E5E2E3;
+      color: var(--on-surface);
       letter-spacing: -0.01em;
       flex: 1;
       text-decoration: none;
@@ -224,7 +227,7 @@
       border-radius: var(--radius-pill);
       border: 1px solid rgba(200,195,211,0.2);
       background: transparent;
-      color: #E5E2E3;
+      color: var(--on-surface);
       cursor: pointer;
       transition: all 0.15s;
       text-decoration: none;
@@ -233,7 +236,7 @@
       align-items: center;
       gap: 0.4rem;
     }
-    .btn-nav:hover { background: rgba(192,193,255,0.12); border-color: rgba(192,193,255,0.5); color: #fff; }
+    .btn-nav:hover { background: rgba(192,193,255,0.12); border-color: rgba(192,193,255,0.5); color: var(--on-primary); }
     .btn-theme {
       width: 32px; height: 32px; padding: 0;
       justify-content: center;
@@ -609,7 +612,7 @@
       transition: color 0.15s;
       opacity: 0.6;
     }
-    .delete-project-btn:hover { color: #FFB4AB; opacity: 1; }
+    .delete-project-btn:hover { color: var(--color-danger); opacity: 1; }
 
     /* =============================================
        MAIN CONTENT AREA
@@ -706,7 +709,7 @@
     }
     .filter-select {
       appearance: none; padding-right: 1.5rem;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%23918F9F'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 8px center;
     }
     .filter-select option { background: var(--surface); color: var(--on-surface); }

@@ -251,12 +251,9 @@
     .fn-Recover  { background:var(--fn-recover-bg);  color:var(--fn-recover-color); }
 
     .ac-badge { background: var(--surface-high); color: var(--on-surface-variant); }
-    .ig1 { background:#1F1B47; color:var(--ig1-color); }
-    .ig2 { background:#0F2340; color:var(--ig2-color); }
-    .ig3 { background:#2A1A47; color:var(--ig3-color); }
-    [data-theme="light"] .ig1 { background:#E0E7FF; color:#3730A3; }
-    [data-theme="light"] .ig2 { background:#DBEAFE; color:#1E3A8A; }
-    [data-theme="light"] .ig3 { background:#EDE9FE; color:#5B21B6; }
+    .ig1 { background: color-mix(in srgb, var(--ig1-color) 15%, transparent); color:var(--ig1-color); }
+    .ig2 { background: color-mix(in srgb, var(--ig2-color) 15%, transparent); color:var(--ig2-color); }
+    .ig3 { background: color-mix(in srgb, var(--ig3-color) 15%, transparent); color:var(--ig3-color); }
 
     .sg-desc {
       font-size: 0.76rem; color: var(--on-surface-variant);

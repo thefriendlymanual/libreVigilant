@@ -282,11 +282,9 @@ priority. Sidebar work is the highest-value cluster.
   `--surface-tint`); add a skip-to-content link before the navbar.
 - Honour `prefers-reduced-motion` for the theme/grid/transform transitions.
 
-**Remaining token hygiene** (consistency fixes that were out of scope for the first pass)
+**Token hygiene** — completed in "Token hygiene: replace hardcoded hex values with CSS custom properties"
 
-- `base.html` still hardcodes a few literals: navbar brand/`.btn-nav` colours, the
-  `.delete-project-btn:hover` colour (`#FFB4AB` — the *dark*-theme error colour, so it's
-  low-contrast pale pink in light mode; should be `var(--color-danger)`), and the
-  `filter-select` dropdown-arrow SVG fill (`#94a3b8`, doesn't track the theme).
-- `.rr-resolved-badge` and the assessment `.ig1/.ig2/.ig3` chip backgrounds use
-  off-palette hex; fold into tokens (`--color-warning` / sanctioned chip tokens).
+All previously identified hardcoded hex values replaced with CSS custom properties:
+- `base.html`: `.app-nav-brand` and `.btn-nav` colours → `var(--on-surface)` / `var(--on-primary)`; `.delete-project-btn:hover` → `var(--color-danger)`; `.filter-select` SVG arrow fill uses theme-aware values (`%23918F9F` base, `%2344424F` light override).
+- `risk_register.html`: `.rr-resolved-badge` → `color-mix(in srgb, var(--color-warning) 18%, transparent)` bg + `var(--color-warning)` text.
+- `assessment.html`: `.ig1/.ig2/.ig3` chip backgrounds → `color-mix(in srgb, var(--igN-color) 15%, transparent)`.
