@@ -14,8 +14,7 @@
 
   function applySidebarCollapsed(isCollapsed) {
     shell.dataset.sidebarCollapsed = isCollapsed ? 'true' : 'false';
-    const icon = document.getElementById('sidebarToggleIcon');
-    if (icon) icon.textContent = isCollapsed ? '›' : '‹';
+    // icon direction is handled by CSS rotation on .shell[data-sidebar-collapsed]
   }
 
   document.querySelectorAll('.project-section').forEach(sec => {

@@ -419,6 +419,8 @@
       transition: background 0.15s, color 0.15s;
     }
     .sidebar-toggle:hover { background: var(--surface-high); color: var(--on-surface); }
+    .sidebar-toggle svg { transition: transform 0.15s ease; }
+    .shell[data-sidebar-collapsed="true"] .sidebar-toggle svg { transform: rotate(180deg); }
 
     .shell[data-sidebar-collapsed="true"] .sidebar-title,
     .shell[data-sidebar-collapsed="true"] .project-section,

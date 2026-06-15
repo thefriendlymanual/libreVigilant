@@ -258,9 +258,10 @@ priority. Sidebar work is the highest-value cluster.
 - ✅ **Strengthen the active-nav state.** The current 30%-mix background is faint
   (especially in light mode where `--primary-container` is already pale). Add a 3px
   `--primary` left accent bar to the active link and bump the background.
-- **Replace glyph icons with real SVG icons.** The leading `■ ▲ ☉` numeric entities are
-  off-system (violate the "thin 1.5pt stroke icons" rule) and are read literally by
-  screen readers. Use inline SVGs marked `aria-hidden="true"`.
+- ✅ **Replace glyph icons with real SVG icons.** Replaced `■ ▲ ☉` entities and `▾ ‹ ›`
+  text glyphs with inline SVGs (`aria-hidden="true"`, `stroke-width="1.5"`, `currentColor`).
+  Sidebar collapse toggle uses CSS `rotate(180deg)` on `[data-sidebar-collapsed]` instead
+  of JS `textContent` swapping.
 - **Make "Delete project" safer.** It sits inline below "+ New assessment" with hover-only
   danger styling — easy to misclick for a cascade delete. Move it into a project context
   menu (⋯) or the Members/settings page, or give it persistent danger styling plus a
