@@ -1,22 +1,5 @@
 <script>
 (function() {
-  const shell = document.getElementById('shell');
-  if (!shell) return;
-
-  const collapsed = localStorage.getItem('librevig-sidebar-open') === 'false';
-  applySidebarCollapsed(collapsed);
-
-  document.getElementById('sidebarToggle').addEventListener('click', () => {
-    const next = shell.dataset.sidebarCollapsed !== 'true';
-    applySidebarCollapsed(next);
-    localStorage.setItem('librevig-sidebar-open', next ? 'false' : 'true');
-  });
-
-  function applySidebarCollapsed(isCollapsed) {
-    shell.dataset.sidebarCollapsed = isCollapsed ? 'true' : 'false';
-    // icon direction is handled by CSS rotation on .shell[data-sidebar-collapsed]
-  }
-
   document.querySelectorAll('.project-section').forEach(sec => {
     const id = sec.dataset.projectId;
     const saved = localStorage.getItem('librevig-sidebar-project-' + id);

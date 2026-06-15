@@ -26,8 +26,8 @@ or more Projects with a role per project.
     base.html           Shared layout + single source of truth for all design tokens
                         (surfaces, primary/secondary/tertiary, IG, status, CIS function
                         badges), navbar, theme toggle, sidebar CSS
-    _sidebar.html       Collapsible project/assessment nav sidebar (included by shell pages)
-    _sidebar_script.html  Sidebar JS (collapse state, toggleProject, showNewAsm helpers)
+    _sidebar.html       Project/assessment nav sidebar (included by shell pages)
+    _sidebar_script.html  Sidebar JS (toggleProject, showNewAsm, showNewProject helpers)
     login.html          Auth entry point
     setup.html          One-time first-run admin account setup
     home.html           Blank canvas / project list
@@ -198,7 +198,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 - CSS design token system for all colours, spacing, radii — see `DESIGN_SYSTEM.md`.
 - **Single-tenant**: the app does not support multiple isolated tenants.
 - **Sessions**: Flask signed cookie sessions; werkzeug password hashing (bundled — no new deps).
-- **Sidebar navigation**: collapsible left sidebar lists projects + their assessments + Risk Register + Compare links per project; collapse state stored in `localStorage` keyed by project id.
+- **Sidebar navigation**: fixed-width (260px) left sidebar lists projects + their assessments + Risk Register + Compare links per project; per-project expand/collapse state stored in `localStorage`.
 - **Blank canvas on first login**: `/setup` creates only the admin account; no project is created.
 - **Assessment isolation**: notes and attachments are assessment-scoped for audit integrity.
 - **`assessment_id` in URL, not session** — all assessment views are bookmarkable.
@@ -245,11 +245,9 @@ priority. Sidebar work is the highest-value cluster.
 
 **Sidebar layout** (highest priority — the nav is the spine of the app)
 
-- **Fix the collapsed state.** Collapsing currently hides every project, assessment,
-  and action (`base.html` hides `.project-section`/`.sidebar-footer` at the 52px width),
-  leaving an empty strip. Either build a real icon rail — per-project initial/icon plus
-  an assessment-count indicator, with a hover/click flyout — or drop the collapse toggle
-  entirely. A half-collapsed state that hides 100% of content is worse than none.
+- ✅ **Removed broken collapse toggle.** The 52px collapsed state hid all content leaving
+  an empty strip, which was worse than no collapse at all. Toggle button, CSS, and JS
+  state machine have been removed; sidebar is now always fully visible at 260px.
 - ✅ **Separate assessments from project tools.** Risk Register, Compare, and Members use
   the same `.asm-link` styling and indentation as actual assessments, so tools read as if
   they were assessments. Group them under a small uppercase `label-sm` sub-heading
@@ -260,8 +258,6 @@ priority. Sidebar work is the highest-value cluster.
   `--primary` left accent bar to the active link and bump the background.
 - ✅ **Replace glyph icons with real SVG icons.** Replaced `■ ▲ ☉` entities and `▾ ‹ ›`
   text glyphs with inline SVGs (`aria-hidden="true"`, `stroke-width="1.5"`, `currentColor`).
-  Sidebar collapse toggle uses CSS `rotate(180deg)` on `[data-sidebar-collapsed]` instead
-  of JS `textContent` swapping.
 - **Make "Delete project" safer.** It sits inline below "+ New assessment" with hover-only
   danger styling — easy to misclick for a cascade delete. Move it into a project context
   menu (⋯) or the Members/settings page, or give it persistent danger styling plus a
