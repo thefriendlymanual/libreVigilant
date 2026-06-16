@@ -63,21 +63,30 @@
         {% endif %}
 
         {% if current_user and current_user.role == 'admin' %}
-          <button class="new-asm-toggle"
-                  type="button"
-                  onclick="showNewAsm({{ project.id }})"
-                  id="newAsmToggle-{{ project.id }}">
-            + New assessment
-          </button>
-          <form class="new-asm"
-                id="newAsmForm-{{ project.id }}"
-                method="POST"
-                action="{{ url_for('create_assessment', project_id=project.id) }}"
-                style="display:none;">
-            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-            <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
-            <button type="submit">Add</button>
-          </form>
+          {% if project.assessments %}
+            <button class="new-asm-toggle"
+                    type="button"
+                    onclick="openNewAsmModal({{ project.id }})"
+                    id="newAsmToggle-{{ project.id }}">
+              + New assessment
+            </button>
+          {% else %}
+            <button class="new-asm-toggle"
+                    type="button"
+                    onclick="showNewAsm({{ project.id }})"
+                    id="newAsmToggle-{{ project.id }}">
+              + New assessment
+            </button>
+            <form class="new-asm"
+                  id="newAsmForm-{{ project.id }}"
+                  method="POST"
+                  action="{{ url_for('create_assessment', project_id=project.id) }}"
+                  style="display:none;">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <input type="text" name="name" placeholder="Assessment name" required maxlength="200" autocomplete="off">
+              <button type="submit">Add</button>
+            </form>
+          {% endif %}
         {% endif %}
       </div>
     </div>
@@ -94,3 +103,44 @@
     </div>
   {% endif %}
 </nav>
+
+{% if current_user and current_user.role == 'admin' %}
+<div class="newasm-modal-overlay" id="newAsmModalOverlay">
+  <div class="newasm-modal-panel">
+    <h3>New assessment</h3>
+    <form id="newAsmModalForm" method="POST">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="newAsmModalName">Assessment name</label>
+        <input type="text" id="newAsmModalName" name="name" required maxlength="200" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="newAsmModalTemplate">Start from</label>
+        <select id="newAsmModalTemplate" name="template_from">
+          <option value="">Blank</option>
+        </select>
+      </div>
+      <div class="newasm-modal-actions">
+        <button type="button" class="btn-pw-cancel" onclick="closeNewAsmModal()">Cancel</button>
+        <button type="submit" class="btn-pw-submit">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  window.LIBREVIG_PROJECT_ASSESSMENTS = {
+    {% for project in projects %}
+      {{ project.id }}: [
+        {% for asm in project.assessments %}
+          {id: {{ asm.id }}, name: {{ asm.name | tojson }}}{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+  window.LIBREVIG_CREATE_ASM_URLS = {
+    {% for project in projects %}
+      {{ project.id }}: {{ url_for('create_assessment', project_id=project.id) | tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+</script>
+{% endif %}

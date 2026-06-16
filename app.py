@@ -704,19 +704,48 @@ def create_assessment(project_id):
         abort(400)
     name = name[:200]
 
+    template_from_raw = request.form.get("template_from", "").strip()
+    template_from = int(template_from_raw) if template_from_raw.isdigit() else None
+
     now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     with get_db() as conn:
+        source_name = None
+        if template_from is not None:
+            source = conn.execute(
+                "SELECT id, name FROM assessments WHERE id = ? AND project_id = ?",
+                (template_from, project_id),
+            ).fetchone()
+            if source is None:
+                abort(400)
+            source_name = source["name"]
+
         cur = conn.execute(
             "INSERT INTO assessments (project_id, name, lifecycle, created_by, created_at) "
             "VALUES (?, ?, 'draft', ?, ?)",
             (project_id, name, session["user_id"], now),
         )
         asm_id = cur.lastrowid
+
+        if template_from is not None:
+            conn.execute(
+                "INSERT INTO assessment_safeguards "
+                "(assessment_id, safeguard_id, status, updated_at, updated_by) "
+                "SELECT ?, safeguard_id, status, ?, ? FROM assessment_safeguards "
+                "WHERE assessment_id = ?",
+                (asm_id, now, session["user_id"], template_from),
+            )
+            conn.execute(
+                "INSERT INTO notes (assessment_id, safeguard_id, body, created_by, created_at) "
+                "SELECT ?, safeguard_id, body, ?, ? FROM notes WHERE assessment_id = ?",
+                (asm_id, session["user_id"], now, template_from),
+            )
+
+        log_value = name if source_name is None else f"{name} (from {source_name})"
         conn.execute(
             "INSERT INTO audit_log "
             "(assessment_id, user_id, user_display, action, new_value, occurred_at) "
             "VALUES (?, ?, ?, 'assessment_created', ?, ?)",
-            (asm_id, session["user_id"], session.get("display_name", ""), name, now),
+            (asm_id, session["user_id"], session.get("display_name", ""), log_value, now),
         )
         conn.commit()
 

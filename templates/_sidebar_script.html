@@ -45,6 +45,34 @@ document.addEventListener('click', function(e) {
   }
 });
 
+function openNewAsmModal(projectId) {
+  const overlay = document.getElementById('newAsmModalOverlay');
+  if (!overlay) return;
+  const form = document.getElementById('newAsmModalForm');
+  const nameInput = document.getElementById('newAsmModalName');
+  const select = document.getElementById('newAsmModalTemplate');
+
+  form.action = (window.LIBREVIG_CREATE_ASM_URLS || {})[projectId] || '';
+  nameInput.value = '';
+
+  select.innerHTML = '<option value="">Blank</option>';
+  const assessments = (window.LIBREVIG_PROJECT_ASSESSMENTS || {})[projectId] || [];
+  assessments.forEach(function(asm) {
+    const opt = document.createElement('option');
+    opt.value = asm.id;
+    opt.textContent = 'Copy from "' + asm.name + '"';
+    select.appendChild(opt);
+  });
+
+  overlay.dataset.open = 'true';
+  nameInput.focus();
+}
+
+function closeNewAsmModal() {
+  const overlay = document.getElementById('newAsmModalOverlay');
+  if (overlay) overlay.dataset.open = 'false';
+}
+
 function showNewProject() {
   document.getElementById('newProjectToggle').style.display = 'none';
   const form = document.getElementById('newProjectForm');
