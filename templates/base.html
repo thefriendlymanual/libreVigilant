@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  {% if current_user %}<meta name="csrf-token" content="{{ csrf_token }}">{% endif %}
   <style>
     /* =============================================
        SENTINEL INDIGO DESIGN SYSTEM — see /DESIGN_SYSTEM.md
@@ -770,6 +771,79 @@
     }
 
     /* =============================================
+       CHANGE PASSWORD MODAL
+    ============================================= */
+    .pw-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.55);
+      align-items: center;
+      justify-content: center;
+    }
+    .pw-modal-overlay[data-open="true"] { display: flex; }
+    .pw-modal-panel {
+      background: var(--surface-bright);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 360px;
+    }
+    .pw-modal-panel h3 {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--on-surface);
+      margin: 0 0 1rem;
+    }
+    .pw-modal-actions {
+      display: flex;
+      gap: 0.6rem;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+    }
+    .btn-pw-cancel {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--outline-variant);
+      background: transparent;
+      color: var(--on-surface);
+      cursor: pointer;
+    }
+    .btn-pw-cancel:hover { background: var(--surface-high); }
+    .btn-pw-submit {
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 1rem;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: linear-gradient(135deg, var(--primary-container), var(--inverse-primary));
+      color: var(--on-primary-container);
+      cursor: pointer;
+    }
+    .btn-pw-submit:hover { opacity: 0.9; }
+    .nav-user-btn {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      color: var(--on-surface-variant);
+      white-space: nowrap;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      transition: text-decoration-color 0.15s;
+    }
+    .nav-user-btn:hover { text-decoration-color: var(--on-surface-variant); }
+
+    /* =============================================
        RESPONSIVE — mobile drawer
     ============================================= */
     .btn-hamburger { display: none; }
@@ -835,7 +909,7 @@
     <small>CIS Controls v8.1</small>
   </a>
   {% if current_user %}
-    <span class="nav-user">{{ current_user.display_name }}</span>
+    <button class="nav-user-btn" id="changePasswordOpenBtn" onclick="openChangePasswordModal()" title="Change password">{{ current_user.display_name }}</button>
     {% if current_user.role == 'admin' %}
       <a href="/users" class="btn-nav">Users</a>
     {% endif %}
@@ -845,6 +919,31 @@
 </nav>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebarDrawer()"></div>
+
+{% if current_user %}
+<div class="pw-modal-overlay" id="changePasswordOverlay">
+  <div class="pw-modal-panel">
+    <h3>Change password</h3>
+    <div class="alert alert-error" id="changePasswordError" style="display:none;"></div>
+    <div class="field">
+      <label for="cpCurrentPassword">Current password</label>
+      <input type="password" id="cpCurrentPassword" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="cpNewPassword">New password</label>
+      <input type="password" id="cpNewPassword" autocomplete="new-password" minlength="12" required>
+    </div>
+    <div class="field">
+      <label for="cpConfirmPassword">Confirm new password</label>
+      <input type="password" id="cpConfirmPassword" autocomplete="new-password" minlength="12" required>
+    </div>
+    <div class="pw-modal-actions">
+      <button class="btn-pw-cancel" id="changePasswordCancelBtn" onclick="closeChangePasswordModal()">Cancel</button>
+      <button class="btn-pw-submit" id="changePasswordSubmitBtn" onclick="submitChangePassword()">Change password</button>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% block content %}{% endblock %}
 
@@ -884,6 +983,70 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('librevig-theme', next);
   document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+function openChangePasswordModal() {
+  const overlay = document.getElementById('changePasswordOverlay');
+  if (!overlay) return;
+  document.getElementById('cpCurrentPassword').value = '';
+  document.getElementById('cpNewPassword').value = '';
+  document.getElementById('cpConfirmPassword').value = '';
+  document.getElementById('changePasswordError').style.display = 'none';
+  overlay.dataset.open = 'true';
+}
+
+function closeChangePasswordModal() {
+  const overlay = document.getElementById('changePasswordOverlay');
+  if (overlay) overlay.dataset.open = 'false';
+}
+
+async function submitChangePassword() {
+  const errorBox = document.getElementById('changePasswordError');
+  const current = document.getElementById('cpCurrentPassword').value;
+  const next = document.getElementById('cpNewPassword').value;
+  const confirm = document.getElementById('cpConfirmPassword').value;
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+  }
+
+  if (!current || !next || !confirm) {
+    showError('All fields are required.');
+    return;
+  }
+  if (next.length < 12) {
+    showError('New password must be at least 12 characters.');
+    return;
+  }
+  if (next !== confirm) {
+    showError('New password and confirmation do not match.');
+    return;
+  }
+
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const submitBtn = document.getElementById('changePasswordSubmitBtn');
+  submitBtn.disabled = true;
+  try {
+    const res = await fetch('/api/user/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfMeta ? csrfMeta.content : ''
+      },
+      body: JSON.stringify({ current_password: current, new_password: next })
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showError(body.error || 'Failed to change password.');
+      return;
+    }
+    closeChangePasswordModal();
+  } catch (e) {
+    showError('Network error — please try again.');
+  } finally {
+    submitBtn.disabled = false;
+  }
 }
 </script>
 

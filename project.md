@@ -238,6 +238,8 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | User documentation | 🔲 In progress — `docs/docs.md` scaffolded, all sections written; Docker deployment sections stubbed pending Dockerfile |
 | In-app help (docs served inline, linked from UI) | 🔲 Todo — defer until docs.md is finalised; route + template pattern is designed |
 | GitHub icon + link to project repo in UI | 🔲 Todo |
+| Self-service password reset (user resets own password from within the app) | ✅ Done |
+| Create assessment from template (modal: blank vs. copy from a previous assessment in the same project, prepopulating safeguard statuses/notes; skips modal straight to blank if project has no prior assessments) | 🔲 Todo |
 
 ### UI Improvements
 

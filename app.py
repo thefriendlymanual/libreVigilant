@@ -1938,6 +1938,32 @@ def reset_password(uid):
     return redirect(url_for("list_users"))
 
 
+@app.route("/api/user/change-password", methods=["POST"])
+@login_required
+def change_own_password():
+    _validate_csrf_api()
+    data = request.get_json(silent=True) or {}
+    current_password = data.get("current_password", "")
+    new_password = data.get("new_password", "")
+
+    with get_db() as conn:
+        user = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (session["user_id"],)
+        ).fetchone()
+        if not user or not check_password_hash(user["password_hash"], current_password):
+            return jsonify({"error": "Current password is incorrect"}), 400
+        if len(new_password) < 12:
+            return jsonify({"error": "New password must be at least 12 characters"}), 400
+
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), session["user_id"]),
+        )
+        conn.commit()
+
+    return jsonify({"ok": True})
+
+
 @app.route("/users/<int:uid>/projects", methods=["POST"])
 @login_required
 def add_user_to_project(uid):

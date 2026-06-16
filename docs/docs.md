@@ -65,8 +65,12 @@ only).
 
 **Adding users:** LibreVigilant has no self-registration and requires no email server. Instance
 admins create accounts directly on the Users page: provide a display name, email, and temporary
-password, then share those credentials with the person. They can change their password once logged
-in (password change is on the roadmap — for now the admin resets it from the Users page).
+password, then share those credentials with the person.
+
+**Changing your password:** Once logged in, click your display name in the top navbar to open the
+**Change password** dialog. Enter your current password and a new one (minimum 12 characters) to
+update it immediately — no admin involvement needed. Instance admins can still force-reset any
+user's password from the Users page if someone is locked out.
 
 ---
 
