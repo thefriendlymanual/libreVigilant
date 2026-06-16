@@ -26,9 +26,9 @@ if not _secret:
     )
 app.secret_key = _secret
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "librevig.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "librevig.db"))
 DATA_PATH = os.path.join(os.path.dirname(__file__), "cis_data.json")
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -2089,8 +2089,9 @@ def api_risk_export(project_id):
     )
 
 
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     app.run(
         debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
         host="0.0.0.0",

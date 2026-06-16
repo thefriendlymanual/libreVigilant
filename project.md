@@ -41,6 +41,8 @@ or more Projects with a role per project.
 ```
 
 ## How to Run
+
+**Dev:**
 ```bash
 python3 app.py
 ```
@@ -54,6 +56,16 @@ sessions on every restart:
 ```bash
 SECRET_KEY=your-secret-here python3 app.py
 ```
+
+**Production:** recommended path is Docker (`docker compose up -d`, see `Dockerfile` /
+`docker-compose.yml`); alternative is Gunicorn + systemd on bare metal. Both documented in
+`docs/docs.md` Section 1. `init_db()` is called at module import time (not just under
+`if __name__ == "__main__"`) so it runs correctly under Gunicorn, which imports `app:app`
+without executing the `__main__` block. With multiple Gunicorn workers, **always pass
+`--preload`** — without it, each worker imports `app.py` independently and runs `init_db()`
+concurrently, which races on the migration steps (e.g. two workers both trying to
+`ALTER TABLE orgs RENAME TO projects`) and crashes. `--preload` imports the app once in the
+master before forking workers, so migrations run exactly once.
 
 ## Data Model
 
@@ -233,9 +245,10 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Design-system consistency fixes (dead template removed, undefined vars, centralized tokens) | ✅ Done |
 | Compare legend: wrap long assessment names within the panel | ✅ Done |
 | UI improvements (sidebar, responsive, a11y) — see below | ✅ Done |
-| Production install guide (WSGI server) | 🔲 Todo — Docker Compose section in docs/docs.md stubbed |
-| Dockerfile + Docker Compose for Docker deployment | 🔲 Todo |
-| User documentation | 🔲 In progress — `docs/docs.md` scaffolded, all sections written; Docker deployment sections stubbed pending Dockerfile |
+| Production install guide (Gunicorn + systemd) | ✅ Done — `docs/docs.md` Option A |
+| Dockerfile + Docker Compose for Docker deployment | ✅ Done — `Dockerfile`, `docker-compose.yml`, `docs/docs.md` Option B |
+| Reverse proxy examples (Traefik/Caddy) for TLS in front of Docker Compose | 🔲 Todo — `docs/docs.md` Option C stubbed |
+| User documentation | ✅ Done — `docs/docs.md` scaffolded, all sections written including Docker/production deployment |
 | In-app help (docs served inline, linked from UI) | 🔲 Todo — defer until docs.md is finalised; route + template pattern is designed |
 | GitHub icon + link to project repo in UI | 🔲 Todo |
 | Self-service password reset (user resets own password from within the app) | ✅ Done |

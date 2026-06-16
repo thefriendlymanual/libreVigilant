@@ -24,9 +24,19 @@ import gaps to the risk register → compare follow-on assessments → close res
 
 ## 1. Deployment
 
-### Option A — Python (development / small teams)
+**Docker is the recommended way to run LibreVigilant** (Option B) — it bundles a production
+WSGI server and keeps the host clean. Option A (running Python directly) is documented for
+servers or laptops where Docker isn't available or wanted.
+
+### Option A — Running directly with Python
 
 Requirements: Python 3.10+.
+
+We recommend using a virtual environment to isolate dependencies:
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+```
 
 ```bash
 git clone https://github.com/your-org/librevigilant.git
@@ -39,17 +49,94 @@ The app starts on port 5000. SQLite database (`librevig.db`) and the `uploads/` 
 automatically on first run. Set `SECRET_KEY` to a long random string — without it, sessions are
 invalidated every time the process restarts.
 
-This option is fine for a single machine or a home lab. For anything team-facing, use one of the
-options below so you get TLS and a production-grade HTTP server.
+This is fine for trying the app out or a home lab. The above runs Flask's built-in development
+server in the foreground (`Ctrl+C` to stop) — it is single-threaded and not hardened for
+team-facing or networked use. For anything beyond a quick trial, use the production setup below.
 
-### Option B — Docker
+> **Windows:** Gunicorn does not run on Windows. Use Docker, Podman, or WSL instead — see
+> Option B.
 
-> Docker support is on the roadmap. This section will be completed when the Dockerfile ships.
+#### Running in production: Gunicorn
+
+Run the app behind Gunicorn instead of the dev server:
+
+```bash
+SECRET_KEY=your-secret-here gunicorn --preload -w 2 -b 0.0.0.0:5000 app:app
+```
+
+This still runs in the foreground. For a real deployment you want it running in the background,
+restarting automatically on crash or reboot, and easy to start/stop — use systemd for that.
+
+#### Running in production: systemd service
+
+Create `/etc/systemd/system/librevigilant.service` (adjust `User`, `WorkingDirectory`, and the
+venv path to match your install):
+
+```ini
+[Unit]
+Description=LibreVigilant
+After=network.target
+
+[Service]
+User=librevigilant
+WorkingDirectory=/opt/librevigilant
+Environment=SECRET_KEY=your-secret-here
+ExecStart=/opt/librevigilant/venv/bin/gunicorn --preload -w 2 -b 0.0.0.0:5000 app:app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now librevigilant   # start now, and on every boot
+```
+
+Common commands:
+
+```bash
+sudo systemctl stop librevigilant
+sudo systemctl restart librevigilant
+sudo systemctl status librevigilant
+journalctl -u librevigilant -f              # follow logs
+```
+
+### Option B — Docker (recommended)
+
+Requirements: Docker with the Compose plugin.
+
+```bash
+git clone https://github.com/your-org/librevigilant.git
+cd librevigilant
+echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
+mkdir -p data && sudo chown 1000:1000 data
+docker compose up -d
+```
+
+The container runs as a non-root user (uid 1000), so the host `./data` directory must be
+writable by that uid — the `chown` step above takes care of that. If you skip it, Compose will
+create `./data` as `root:root` and the app will fail to create `librevig.db` inside it.
+
+The app is available at `http://localhost:5000`. `librevig.db` and the `uploads/` folder are
+persisted on the host under `./data/`, so they survive container rebuilds and `docker compose
+down`. The container runs the app via Gunicorn, not the Flask dev server.
+
+Common commands:
+
+```bash
+docker compose logs -f      # follow logs
+docker compose restart      # restart the app
+docker compose down         # stop and remove the container (data in ./data/ is kept)
+```
 
 ### Option C — Docker Compose with a reverse proxy
 
-> Docker Compose support (with Traefik or Caddy for TLS termination) is on the roadmap. This
-> section will be completed alongside Option B.
+> Examples using Traefik or Caddy for automatic TLS in front of the Option B Compose setup are
+> planned as a follow-up. Until then, put your own reverse proxy (Traefik, Caddy, nginx) in front
+> of the container from Option B, forwarding to port 5000.
 
 ---
 
