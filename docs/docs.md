@@ -144,20 +144,28 @@ docker compose down         # stop and remove the container (data in ./data/ is 
 
 On the very first visit, the app redirects you to `/setup`. Fill in a display name, email address,
 and password — this creates the **instance admin** account. The setup page is only accessible while
-no users exist; it locks itself permanently once the first account is created.
+no users exist; it locks itself permanently once the first account is created. After setup you are
+logged in automatically and land on the home page.
 
-After setup you land on the home page with an empty workspace. From here, create your first project
-or add further user accounts (via the **Users** page in the top navbar, visible to instance admins
-only).
+![The home workspace with sidebar showing projects and assessments](img/02-home.jpg)
+
+From here, create your first project or add further user accounts (via the **Users** page in the
+top navbar, visible to instance admins only).
 
 **Adding users:** LibreVigilant has no self-registration and requires no email server. Instance
 admins create accounts directly on the Users page: provide a display name, email, and temporary
 password, then share those credentials with the person.
 
+![User management page showing all users, roles and project memberships](img/10-users.jpg)
+
 **Changing your password:** Once logged in, click your display name in the top navbar to open the
 **Change password** dialog. Enter your current password and a new one (minimum 12 characters) to
 update it immediately — no admin involvement needed. Instance admins can still force-reset any
 user's password from the Users page if someone is locked out.
+
+The sign-in page is shown on any unauthenticated visit:
+
+![Sign-in page](img/01-login.jpg)
 
 ---
 
@@ -170,8 +178,8 @@ example, one per business unit or client engagement.
 **Create a project:** Click **+ New project** at the bottom of the left sidebar. Give it a name;
 LibreVigilant generates a URL slug automatically. The project appears in the sidebar immediately.
 
-**Add members:** Open the project in the sidebar and click **Members** under Project tools. Enter
-a user's email address and assign them a role:
+**Add members:** Open the project in the sidebar and click **Members** under Project tools. Use
+the dropdown to select an existing user and assign them a role:
 
 | Role | What they can do |
 |---|---|
@@ -182,17 +190,27 @@ a user's email address and assign them a role:
 A user can hold different roles across different projects. The instance admin role (set on the
 Users page) only grants access to the Users page — project roles govern everything within a project.
 
+![Project members page showing team members with their roles](img/09-members.jpg)
+
 ---
 
 ## 4. Running an Assessment
 
 An assessment is a point-in-time snapshot of your compliance posture against all 153 CIS safeguards.
 
-**Create:** From the sidebar, click **+ New assessment** under the project name. Give it a
-descriptive name (e.g. "Q2 2026 — Initial baseline"). Only project admins can create assessments.
+**Create:** From the sidebar, click **+ New assessment** under the project name. A modal appears
+asking for a name and a starting point — either blank or copied from a previous assessment in the
+same project. Copying pre-populates all safeguard statuses and notes, so you only need to record
+what changed. Only project admins can create assessments.
+
+![Create assessment modal with name field and Start From dropdown](img/11-create-from-template-modal.jpg)
 
 **Assess safeguards:** Open the assessment to see the full accordion view, grouped by CIS control.
-Set a status on each safeguard:
+Score cards and a radar chart at the top update live as you work.
+
+![Assessment view showing stat cards, radar chart and collapsed controls](img/03-assessment-collapsed.jpg)
+
+Expand any control to see its safeguards. Set a status on each:
 
 | Status | Meaning |
 |---|---|
@@ -202,9 +220,14 @@ Set a status on each safeguard:
 | Implemented | Fully in place |
 | Not applicable | Excluded from scope with justification |
 
-Editors and admins can set statuses, add notes (threaded comments), and attach evidence files.
-Viewers can read everything and export to CSV. The assessment view includes an SVG radar chart and
-score summary cards — these update live as you work.
+![Control expanded showing individual safeguards with statuses and IG level badges](img/04-assessment-expanded.jpg)
+
+Editors and admins can set statuses, add notes (threaded comments per safeguard), and attach
+evidence files. Click the **Notes** button on any safeguard row to open the notes panel inline.
+
+![Notes panel open on a safeguard showing threaded comments](img/05-notes-panel.jpg)
+
+Viewers can read everything and export to CSV.
 
 **Filtering:** Use the filter bar above the accordion to narrow by IG level, CIS function, control,
 or status. Filtering is instant and client-side — no page reload.
@@ -227,6 +250,8 @@ a comparison.
 The risk register is project-scoped — it persists across assessments and accumulates your
 remediation plan over time. All open gaps (non-implemented safeguards) from any completed
 assessment can be imported into it.
+
+![Risk register showing open items with treatment, owner, target date and weight columns](img/06-risk-register.jpg)
 
 **Import:** On the Risk Register page, select a completed assessment and click **Import gaps**.
 LibreVigilant adds any safeguards with a status of *Not implemented* or *Partial* that aren't
@@ -260,7 +285,12 @@ dropdowns and click **Compare**. You get:
   Score per control runs 0–100% based on implemented and partial safeguards (not-applicable
   safeguards are excluded from the denominator).
 - **Delta table** — every control listed with its score in each assessment and the percentage-point
-  change. Controls that improved are highlighted green; regressions are highlighted red.
+  change. Controls that improved are highlighted; the net change and counts of improved, declined,
+  and unchanged controls are summarised in the legend panel.
+
+![Compare view showing dual-polygon radar chart with legend and overall scores](img/07-compare.jpg)
+
+![Control breakdown table showing A%, B% and delta for all 18 controls](img/08-compare-delta.jpg)
 
 This view is most useful for comparing a baseline against a follow-on assessment to demonstrate
 progress, or for comparing two projects against a shared benchmark.
@@ -272,13 +302,17 @@ progress, or for comparing two projects against a shared benchmark.
 CIS compliance is not a one-time exercise. Create a new assessment at each review cycle (quarterly,
 annually, or after significant infrastructure change) and repeat the workflow from section 4.
 
+When creating a new assessment, the **Start from** dropdown lets you copy an existing assessment
+as a template. This pre-populates all safeguard statuses and notes so you only need to record
+what changed since the previous cycle — a significant time saving on large assessments.
+
 Once the new assessment is completed:
 
 1. **Re-import to the risk register.** Import from the new assessment. Items already in the
    register are skipped; new gaps are added.
 2. **Review reconciliation suggestions.** After import, LibreVigilant checks whether any open risk
-   items are now showing *Implemented* in the new assessment. A modal lists these and lets you close
-   them in bulk with a single click — your treatment notes are preserved.
+   items are now showing *Implemented* in the new assessment. If any are found, a modal lists them
+   and lets you close them in bulk — your treatment notes are preserved.
 3. **Update the register.** Work through any new items, update owners and target dates, and close
    anything else that has been remediated.
 4. **Compare.** Use the Compare view to show progress between the previous and new assessment.
