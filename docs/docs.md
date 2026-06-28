@@ -1,9 +1,13 @@
 # LibreVigilant — User Guide
 
-LibreVigilant is a self-hosted web application for tracking your organisation's compliance against
-[CIS Controls v8.1.2](https://www.cisecurity.org/controls/v8). It covers all 153 safeguards across
-18 controls, supports multiple projects and team members, and maintains a living risk register that
-you update across successive assessment cycles.
+LibreVigilant is a self-hosted self-assessment and tracking tool built around the
+[CIS Critical Security Controls v8.1.2](https://www.cisecurity.org/controls/v8). The CIS Controls
+are a practical, prioritised framework of 153 safeguards across 18 control areas — an accessible
+starting point for any organisation that wants to understand and systematically improve its
+cybersecurity posture.
+
+LibreVigilant is not a compliance tool. It is designed to help teams work through the CIS Controls
+at their own pace, track where they are today, and make visible progress over time.
 
 **Typical workflow:** deploy → create users → create a project → run an initial assessment →
 import gaps to the risk register → compare follow-on assessments → close resolved risks.
@@ -171,9 +175,9 @@ The sign-in page is shown on any unauthenticated visit:
 
 ## 3. Creating a Project and Adding Members
 
-A **Project** is the top-level container for all your compliance work. Each project holds its own
-assessments, risk register, and audit history. You can run multiple projects in parallel — for
-example, one per business unit or client engagement.
+A **Project** is the top-level container for your security improvement work. Each project holds
+its own assessments, risk register, and audit history. You can run multiple projects in parallel —
+for example, one per business unit, site, or engagement.
 
 **Create a project:** Click **+ New project** at the bottom of the left sidebar. Give it a name;
 LibreVigilant generates a URL slug automatically. The project appears in the sidebar immediately.
@@ -196,7 +200,9 @@ Users page) only grants access to the Users page — project roles govern everyt
 
 ## 4. Running an Assessment
 
-An assessment is a point-in-time snapshot of your compliance posture against all 153 CIS safeguards.
+An assessment is a point-in-time snapshot of where your organisation stands against the 153 CIS
+safeguards. The goal is not to achieve a particular score but to build an honest picture of your
+current posture — understanding your gaps is the first step to addressing them.
 
 **Create:** From the sidebar, click **+ New assessment** under the project name. A modal appears
 asking for a name and a starting point — either blank or copied from a previous assessment in the
@@ -205,32 +211,35 @@ what changed. Only project admins can create assessments.
 
 ![Create assessment modal with name field and Start From dropdown](img/11-create-from-template-modal.jpg)
 
-**Assess safeguards:** Open the assessment to see the full accordion view, grouped by CIS control.
-Score cards and a radar chart at the top update live as you work.
+**Work through the safeguards:** Open the assessment to see the full accordion view, grouped by
+CIS control. Score cards and a radar chart at the top update live as you work.
 
 ![Assessment view showing stat cards, radar chart and collapsed controls](img/03-assessment-collapsed.jpg)
 
-Expand any control to see its safeguards. Set a status on each:
+Expand any control to see its safeguards. For each one, record your honest current state:
 
 | Status | Meaning |
 |---|---|
 | Not assessed | Default — not yet reviewed |
-| Not implemented | The control is absent |
-| Partial | Some elements in place but not complete |
+| Not implemented | This safeguard is not in place |
+| Partial | Some elements are in place but the safeguard is not complete |
 | Implemented | Fully in place |
-| Not applicable | Excluded from scope with justification |
+| Not applicable | Out of scope for this organisation or environment |
 
 ![Control expanded showing individual safeguards with statuses and IG level badges](img/04-assessment-expanded.jpg)
 
 Editors and admins can set statuses, add notes (threaded comments per safeguard), and attach
-evidence files. Click the **Notes** button on any safeguard row to open the notes panel inline.
+evidence files. Click the **Notes** button on any safeguard row to open the notes panel inline —
+useful for capturing rationale, decisions, or links to supporting evidence.
 
 ![Notes panel open on a safeguard showing threaded comments](img/05-notes-panel.jpg)
 
 Viewers can read everything and export to CSV.
 
-**Filtering:** Use the filter bar above the accordion to narrow by IG level, CIS function, control,
-or status. Filtering is instant and client-side — no page reload.
+**Implementation Groups:** Each safeguard is tagged IG1, IG2, and/or IG3. IG1 represents the
+essential hygiene controls recommended for every organisation regardless of size. The filter bar
+lets you focus on a specific IG level, CIS function, or control area — useful for working through
+the assessment in structured passes rather than trying to do everything at once.
 
 **Lifecycle:**
 
@@ -248,74 +257,78 @@ a comparison.
 ## 5. Risk Register
 
 The risk register is project-scoped — it persists across assessments and accumulates your
-remediation plan over time. All open gaps (non-implemented safeguards) from any completed
-assessment can be imported into it.
+remediation plan over time. Rather than re-entering context every cycle, the register carries
+your decisions forward: treatment choices, owners, target dates, and notes all survive from one
+assessment to the next.
 
 ![Risk register showing open items with treatment, owner, target date and weight columns](img/06-risk-register.jpg)
 
 **Import:** On the Risk Register page, select a completed assessment and click **Import gaps**.
 LibreVigilant adds any safeguards with a status of *Not implemented* or *Partial* that aren't
 already in the register. Existing items are never overwritten — your treatment notes, owners, and
-target dates are safe.
+target dates are preserved.
 
 Each imported item is assigned a **risk weight** (`IG1 × 3 + IG2 × 2 + IG3 × 1`, halved for
-Partial status). Items are listed highest-weight first by default.
+Partial status) to reflect the breadth of impact across implementation groups. Items are listed
+highest-weight first by default, giving a natural starting point for prioritisation.
 
-**Triage each item** by clicking its row to expand the inline editor:
+**Triage each item** by expanding the inline editor:
 
 - **Treatment** — Accept, Mitigate, Transfer, Avoid, or Remediate
 - **Owner** — free text; name or team responsible
-- **Target date** — ISO date for planned completion
-- **Notes** — context, decisions, links to tickets
+- **Target date** — planned completion date
+- **Notes** — context, decisions, links to tickets or evidence
 
-**Close an item** once the safeguard is implemented. The Current Status column (pulled from the
-most recent assessment) shows whether a safeguard has improved since the item was opened — an
-amber *Resolved in latest* badge appears when it has. Items can be reopened if circumstances change.
+**Close an item** once a safeguard is in place. The Current Status column (pulled from the most
+recent assessment) shows whether a safeguard has improved since the item was opened — an amber
+*Resolved in latest* badge appears when it has. Items can be reopened if circumstances change.
 
-**Export:** Download the full register as CSV for use in spreadsheets or reports.
+**Export:** Download the full register as CSV for use in reports or spreadsheets.
 
 ---
 
 ## 6. Comparing Assessments
 
-The Compare view lets you place two completed assessments side by side. Select them from the
-dropdowns and click **Compare**. You get:
+The Compare view lets you place two completed assessments side by side to see how your posture
+has shifted. Select them from the dropdowns and click **Compare**. You get:
 
 - **Dual-polygon radar chart** — one polygon per assessment, overlaid on the same 18-control axes.
-  Score per control runs 0–100% based on implemented and partial safeguards (not-applicable
-  safeguards are excluded from the denominator).
+  The score per control reflects the proportion of implemented and partial safeguards (not-applicable
+  safeguards are excluded from the denominator, so out-of-scope areas don't drag down your picture).
 - **Delta table** — every control listed with its score in each assessment and the percentage-point
-  change. Controls that improved are highlighted; the net change and counts of improved, declined,
-  and unchanged controls are summarised in the legend panel.
+  change. The legend panel summarises the net change and counts of improved, unchanged, and declined
+  controls.
 
 ![Compare view showing dual-polygon radar chart with legend and overall scores](img/07-compare.jpg)
 
 ![Control breakdown table showing A%, B% and delta for all 18 controls](img/08-compare-delta.jpg)
 
-This view is most useful for comparing a baseline against a follow-on assessment to demonstrate
-progress, or for comparing two projects against a shared benchmark.
+The Compare view is most useful after completing a follow-on assessment — it gives a concrete,
+visual account of where your security posture has improved and where effort is still needed.
 
 ---
 
 ## 7. Follow-on Assessments
 
-CIS compliance is not a one-time exercise. Create a new assessment at each review cycle (quarterly,
-annually, or after significant infrastructure change) and repeat the workflow from section 4.
+Security posture improvement is an ongoing process, not a one-time exercise. Running assessments
+at regular intervals — quarterly, annually, or after significant infrastructure change — lets you
+track progress, revisit decisions, and keep your risk register current.
 
 When creating a new assessment, the **Start from** dropdown lets you copy an existing assessment
 as a template. This pre-populates all safeguard statuses and notes so you only need to record
-what changed since the previous cycle — a significant time saving on large assessments.
+what changed since the previous cycle — a significant time saving on subsequent passes.
 
 Once the new assessment is completed:
 
 1. **Re-import to the risk register.** Import from the new assessment. Items already in the
-   register are skipped; new gaps are added.
-2. **Review reconciliation suggestions.** After import, LibreVigilant checks whether any open risk
-   items are now showing *Implemented* in the new assessment. If any are found, a modal lists them
-   and lets you close them in bulk — your treatment notes are preserved.
+   register are skipped; newly identified gaps are added.
+2. **Review reconciliation suggestions.** After import, LibreVigilant checks whether any open
+   risk items are now showing *Implemented* in the new assessment. If any are found, a modal
+   lists them and lets you close them in bulk — your treatment notes are preserved.
 3. **Update the register.** Work through any new items, update owners and target dates, and close
-   anything else that has been remediated.
-4. **Compare.** Use the Compare view to show progress between the previous and new assessment.
+   anything else that has been addressed.
+4. **Compare.** Use the Compare view to show the shift in posture between the previous and new
+   assessment.
 
-Over time, the risk register becomes a living remediation roadmap that carries your decisions and
-history forward, regardless of how many assessment cycles have passed.
+Over time, the risk register becomes a living improvement roadmap — carrying your context and
+decisions forward across every assessment cycle.
