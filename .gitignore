@@ -8,5 +8,9 @@ data/
 *.key
 *.pem
 
-# Internal security findings — do not publish to the public repo
+# Internal/dev files — do not publish to the public repo
 SECURITY.md
+UX-REVIEW.md
+UAT-REPORT.md
+UAT-PROGRESS.md
+.claude/
