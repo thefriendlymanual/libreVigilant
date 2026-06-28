@@ -1,13 +1,12 @@
 # LibreVigilant — User Guide
 
-LibreVigilant is a self-hosted self-assessment and tracking tool built around the
+LibreVigilant is a cybersecurity self-assessment and tracking tool built around the
 [CIS Critical Security Controls v8.1.2](https://www.cisecurity.org/controls/v8). The CIS Controls
 are a practical, prioritised framework of 153 safeguards across 18 control areas — an accessible
 starting point for any organisation that wants to understand and systematically improve its
 cybersecurity posture.
 
-LibreVigilant is not a compliance tool. It is designed to help teams work through the CIS Controls
-at their own pace, track where they are today, and make visible progress over time.
+LibreVigilant is designed to help organisations understand their initial baseline cybersecurity posture, identify and prioritise improvement actions based on risk and to enable tracking changes to the posture over time. 
 
 **Typical workflow:** deploy → create users → create a project → run an initial assessment →
 import gaps to the risk register → compare follow-on assessments → close resolved risks.
@@ -236,10 +235,18 @@ useful for capturing rationale, decisions, or links to supporting evidence.
 
 Viewers can read everything and export to CSV.
 
-**Implementation Groups:** Each safeguard is tagged IG1, IG2, and/or IG3. IG1 represents the
-essential hygiene controls recommended for every organisation regardless of size. The filter bar
-lets you focus on a specific IG level, CIS function, or control area — useful for working through
-the assessment in structured passes rather than trying to do everything at once.
+**Implementation Groups:** Each safeguard is tagged IG1, IG2, and/or IG3, reflecting the CIS
+guidance on which organisations should prioritise it:
+
+- **IG1** — essential cyber hygiene, recommended for every organisation regardless of size or
+  resources. A strong starting point for any team new to the Controls.
+- **IG2** — builds on IG1 for organisations with more IT complexity, dedicated security staff, or
+  a greater exposure to sensitive data. Suitable for most mid-sized organisations.
+- **IG3** — the full set, targeting organisations that face sophisticated, targeted attacks and
+  have the resources and expertise to implement advanced controls.
+
+The filter bar lets you focus on a specific IG level, CIS function, or control area — useful for
+working through the assessment in structured passes rather than trying to do everything at once.
 
 **Lifecycle:**
 
