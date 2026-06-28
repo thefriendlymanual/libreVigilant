@@ -138,15 +138,24 @@ docker compose down         # stop and remove the container (data in ./data/ is 
 ### Option C — Docker Compose with Traefik and automatic TLS
 
 This extends Option B with Traefik as a TLS-terminating reverse proxy. Certificates are
-issued automatically by Let's Encrypt using the **DNS-01 challenge via Cloudflare** — this
-works on internal networks with no publicly reachable ports required, as long as the domain
-is managed in Cloudflare.
+issued automatically by Let's Encrypt using the **DNS-01 challenge** — the only ACME
+challenge type that works on internal networks, since it proves domain ownership by writing
+a DNS TXT record rather than requiring any inbound port to be reachable from the internet.
+
+The example below uses **Cloudflare** as the DNS provider. Traefik supports many other DNS
+providers through the [LEGO library](https://go-acme.github.io/lego/dns/) — the full list
+of providers and their required environment variables is documented there. Traefik's own ACME
+reference (including all challenge options) is at
+[doc.traefik.io](https://doc.traefik.io/traefik/reference/install-configuration/tls/certificate-resolvers/acme/#the-different-acme-challenges).
+To switch providers, replace `CF_DNS_API_TOKEN` in the `.env` and change the `provider:` value
+in `traefik/traefik.yml` to match your provider's LEGO name.
 
 **Prerequisites:**
-- A domain managed in Cloudflare (the host running LibreVigilant does not need to be
-  reachable from the internet — only the Cloudflare API does)
+- A domain whose DNS is managed by a [LEGO-supported provider](https://go-acme.github.io/lego/dns/)
+  (Cloudflare in this example). The host running LibreVigilant does not need to be reachable
+  from the internet — only the DNS provider's API does.
 - A Cloudflare API token with **Zone → DNS → Edit** and **Zone → Zone → Read** permissions,
-  scoped to the relevant zone
+  scoped to the relevant zone.
 
 #### 1. Create a Cloudflare API token
 
@@ -194,9 +203,16 @@ certificatesResolvers:
 
 #### 5. Point DNS at the host
 
-Create an A record (or CNAME) in Cloudflare pointing `librevigilant.example.com` at
-the IP address of the machine running LibreVigilant. It does not need to be publicly
-routable — private IP addresses work fine for internal deployments.
+The hostname needs to resolve to the machine running LibreVigilant, but it does **not**
+need a public DNS record. For an internal-only deployment, create the record on your local
+DNS server (e.g. Pi-hole, AdGuard Home, a router with custom DNS, or Windows Server DNS)
+pointing `librevigilant.example.com` at the host's private IP address. A private IP is
+perfectly valid — Let's Encrypt never connects to your host; it only checks for the DNS TXT
+record that Traefik creates via the Cloudflare API.
+
+If the host is also publicly reachable and you want external access, you can instead create
+a public A record in Cloudflare pointing to the public IP — but this is not required for
+internal use.
 
 #### 6. Start
 
