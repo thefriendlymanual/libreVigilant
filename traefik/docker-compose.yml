@@ -1,0 +1,36 @@
+services:
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./acme.json:/letsencrypt/acme.json
+    networks:
+      - proxy
+
+  app:
+    build: ..
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ../data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.librevigilant.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.librevigilant.entrypoints=websecure"
+      - "traefik.http.routers.librevigilant.tls=true"
+      - "traefik.http.routers.librevigilant.tls.certresolver=letsencrypt"
+      - "traefik.http.services.librevigilant.loadbalancer.server.port=5000"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    driver: bridge

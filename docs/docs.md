@@ -135,11 +135,96 @@ docker compose restart      # restart the app
 docker compose down         # stop and remove the container (data in ./data/ is kept)
 ```
 
-### Option C — Docker Compose with a reverse proxy
+### Option C — Docker Compose with Traefik and automatic TLS
 
-> Examples using Traefik or Caddy for automatic TLS in front of the Option B Compose setup are
-> planned as a follow-up. Until then, put your own reverse proxy (Traefik, Caddy, nginx) in front
-> of the container from Option B, forwarding to port 5000.
+This extends Option B with Traefik as a TLS-terminating reverse proxy. Certificates are
+issued automatically by Let's Encrypt using the **DNS-01 challenge via Cloudflare** — this
+works on internal networks with no publicly reachable ports required, as long as the domain
+is managed in Cloudflare.
+
+**Prerequisites:**
+- A domain managed in Cloudflare (the host running LibreVigilant does not need to be
+  reachable from the internet — only the Cloudflare API does)
+- A Cloudflare API token with **Zone → DNS → Edit** and **Zone → Zone → Read** permissions,
+  scoped to the relevant zone
+
+#### 1. Create a Cloudflare API token
+
+In the Cloudflare dashboard: **My Profile → API Tokens → Create Token**.
+Use the *Edit zone DNS* template, scope it to your zone, and copy the token.
+
+#### 2. Prepare the `traefik/` directory
+
+The repository ships with ready-to-use config files in `traefik/`:
+
+```
+traefik/
+  docker-compose.yml   Traefik + app services, with labels for automatic routing
+  traefik.yml          Traefik static config: entrypoints, DNS-01 resolver
+```
+
+Create the certificate storage file and lock it down — ACME requires it to be `600`:
+
+```bash
+touch traefik/acme.json
+chmod 600 traefik/acme.json
+```
+
+#### 3. Set environment variables
+
+Add to your `.env` file (in the project root, alongside the main `docker-compose.yml`):
+
+```bash
+SECRET_KEY=your-secret-here        # already set from Option B
+CF_DNS_API_TOKEN=your-token-here   # Cloudflare API token from step 1
+DOMAIN=librevigilant.example.com   # the hostname to serve the app on
+```
+
+#### 4. Set your email in `traefik/traefik.yml`
+
+Open `traefik/traefik.yml` and replace `your-email@example.com` with your address —
+Let's Encrypt uses it for expiry notifications:
+
+```yaml
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "you@example.com"
+```
+
+#### 5. Point DNS at the host
+
+Create an A record (or CNAME) in Cloudflare pointing `librevigilant.example.com` at
+the IP address of the machine running LibreVigilant. It does not need to be publicly
+routable — private IP addresses work fine for internal deployments.
+
+#### 6. Start
+
+Run Compose from the `traefik/` directory (which has its own `docker-compose.yml`):
+
+```bash
+cd traefik
+docker compose --env-file ../.env up -d
+```
+
+Traefik will request a certificate from Let's Encrypt on first start. DNS propagation
+can take a few minutes — check progress with `docker compose logs -f traefik`.
+
+Once running, LibreVigilant is available at `https://librevigilant.example.com`.
+HTTP requests are redirected to HTTPS automatically.
+
+Common commands (from the `traefik/` directory):
+
+```bash
+docker compose --env-file ../.env logs -f        # follow logs
+docker compose --env-file ../.env restart app    # restart the app only
+docker compose --env-file ../.env down           # stop everything
+```
+
+> **Note:** `SESSION_COOKIE_SECURE` should be set to `True` for production deployments
+> behind a TLS proxy. This requires `ProxyFix` middleware to correctly read
+> `X-Forwarded-Proto` headers from Traefik — a follow-up hardening step documented in
+> `SECURITY.md` (item M1).
 
 ---
 

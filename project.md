@@ -247,7 +247,7 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | UI improvements (sidebar, responsive, a11y) — see below | ✅ Done |
 | Production install guide (Gunicorn + systemd) | ✅ Done — `docs/docs.md` Option A |
 | Dockerfile + Docker Compose for Docker deployment | ✅ Done — `Dockerfile`, `docker-compose.yml`, `docs/docs.md` Option B |
-| Reverse proxy examples (Traefik/Caddy) for TLS in front of Docker Compose | 🔲 Todo — `docs/docs.md` Option C stubbed |
+| Reverse proxy example (Traefik + Let's Encrypt DNS-01 via Cloudflare) | ✅ Done — `docs/docs.md` Option C, `traefik/` directory |
 | User documentation | ✅ Done — `docs/docs.md` scaffolded, all sections written including Docker/production deployment |
 | In-app help (docs served inline, linked from UI) | 🔲 Todo — defer until docs.md is finalised; route + template pattern is designed |
 | GitHub icon + link to project repo in UI | 🔲 Todo |
