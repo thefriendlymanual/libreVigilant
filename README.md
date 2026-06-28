@@ -1,46 +1,59 @@
 # LibreVigilant
 
-A self-hosted web application for tracking compliance against [CIS Controls v8.1.2](https://www.cisecurity.org/controls) (March 2025). Assess 153 safeguards across 18 controls, track evidence, and visualise your compliance posture — all from a single lightweight tool with zero external dependencies beyond Flask.
+A self-hosted cybersecurity self-assessment and tracking tool built around the
+[CIS Critical Security Controls v8.1.2](https://www.cisecurity.org/controls/v8) (March 2025).
+
+The CIS Controls are a practical, prioritised framework of 153 safeguards across 18 control
+areas — an accessible starting point for any organisation that wants to understand and
+systematically improve its cybersecurity posture. LibreVigilant helps teams work through those
+controls at their own pace, track where they are today, and make visible progress over time.
+
+![Assessment view showing stat cards, radar chart and collapsed controls](docs/img/03-assessment-collapsed.jpg)
 
 ## Features
 
-**Dashboard**
-- Real-time IG1, IG2, and IG3 compliance scores with progress bars
-- Interactive SVG radar chart showing per-control compliance at a glance
-- Radar chart adapts to active filters: per-control overview, per-function breakdown, or individual safeguards
-- Per-control score displayed in each control header
+**Self-assessment**
+- All 153 CIS v8.1.2 safeguards across 18 controls, grouped by control in a collapsible accordion
+- Five status levels: Not Assessed, Not Implemented, Partial, Implemented, Not Applicable
+- IG1/IG2/IG3 scoring with live progress indicators and an SVG radar chart
+- Filter by Implementation Group, CIS function, control, or status — all client-side, instant
+- Notes (threaded comments) and file evidence attachments per safeguard
+- CSV export
 
-**Assessment Tracking**
-- Five status levels per safeguard: Not Assessed, Not Implemented, Partial, Implemented, Not Applicable
-- Auto-save on status change
-- Scoring: Implemented = 100%, Partial = 50%, N/A excluded from totals
+**Assessment lifecycle**
+- Draft → In Review → Completed — completed assessments are permanently read-only
+- Create a new assessment blank or copied from any previous one (statuses and notes pre-populated)
+- Audit log recording every status change, note, and attachment action
 
-**Notes and Evidence**
-- Multi-note comment threads per safeguard with timestamps
-- File attachment support (images, PDFs, Office documents, text/CSV)
-- Drag-and-drop or browse upload, 50 MB per file limit
+**Risk register**
+- Project-scoped, persistent across assessment cycles
+- Import gaps (Not Implemented / Partial safeguards) from any completed assessment
+- Risk weighting: `IG1×3 + IG2×2 + IG3×1`, halved for Partial — highest-weight items listed first
+- Triage inline: treatment, owner, target date, notes
+- Close resolved items; reopen if circumstances change
+- Reconciliation suggestions: after import, flags open items now showing Implemented in the new assessment
+- CSV export
 
-**Filtering**
-- Filter by Implementation Group (IG1, IG2, IG3)
-- Filter by security function (Govern, Identify, Protect, Detect, Respond, Recover)
-- Filter by control group (C01-C18)
-- Filter by status
-- Full-text search across safeguard IDs, titles, and descriptions
-- All filters cascade — radar chart, stats, and table update together
+**Comparison**
+- Place any two completed assessments side by side
+- Dual-polygon SVG radar chart and a per-control delta table
 
-**Export**
-- CSV export with full assessment data including notes and attachments
+![Compare view showing dual radar and control breakdown delta table](docs/img/07-compare.jpg)
 
-**UI/UX**
-- Light and dark mode with persistent preference
-- Design system using CSS custom properties
-- Consistent C-prefix ID convention (C01-C18 for controls, C01-01 for safeguards)
-- Responsive layout
-- Accessible: colour is never the sole indicator of status
+**Multi-user, multi-project**
+- Unlimited projects; each with its own assessments, risk register, and audit history
+- Per-project roles: Admin, Editor, Viewer
+- Instance-level admin for user management (no SMTP required)
+- Self-service password change; admin password reset
+
+**UI**
+- Light and dark mode, persisted in `localStorage`
+- Responsive layout with slide-in sidebar on mobile
+- Accessible: skip link, ARIA landmarks, focus rings, `prefers-reduced-motion` support
 
 ## Quick Start
 
-The recommended way to run LibreVigilant is with **Docker**:
+**Docker (recommended):**
 
 ```bash
 git clone https://github.com/thefriendlymanual/libreVigilant.git
@@ -50,9 +63,10 @@ mkdir -p data && sudo chown 1000:1000 data
 docker compose up -d
 ```
 
-Open [http://localhost:5000](http://localhost:5000).
+Open [http://localhost:5000](http://localhost:5000). On first visit you'll be directed to `/setup`
+to create the admin account.
 
-To try it directly with Python instead (we recommend doing this inside a virtual environment):
+**Python (for local use / home lab):**
 
 ```bash
 pip install -r requirements.txt
@@ -61,54 +75,61 @@ SECRET_KEY="replace-with-a-long-random-string" python3 app.py
 
 The SQLite database (`librevig.db`) and `uploads/` folder are created automatically on first run.
 
-On first run, you'll be redirected to `/setup` to create the admin account.
-
-See [docs/docs.md](docs/docs.md) for the full deployment guide, including running in production
-with Gunicorn and systemd, and stopping/restarting the app.
+See [docs/docs.md](docs/docs.md) for the full deployment guide, including Gunicorn, systemd, and
+reverse proxy options.
 
 ## Project Structure
 
 ```
-app.py               Flask application — routes, DB init, API endpoints
-cis_data.json        CIS Controls v8.1.2 dataset (18 controls, 153 safeguards)
+app.py                  Flask app — routes, DB init, RBAC, all API endpoints
+cis_data.json           CIS Controls v8.1.2 static dataset (loaded at startup)
+requirements.txt        Flask >= 3.0 (only dependency)
+Dockerfile
+docker-compose.yml
 templates/
-  index.html         Single-page UI (Jinja2 + vanilla JS + inline CSS)
-uploads/             File attachments stored on disk
-librevig.db          SQLite database (auto-created, gitignored)
-DESIGN_SYSTEM.md     UI token reference for contributors
-project.md           Internal architecture and API documentation
+  base.html             Layout shell, design tokens, shared component CSS
+  _sidebar.html         Project/assessment nav sidebar
+  _sidebar_script.html  Sidebar JS
+  login.html            Authentication
+  setup.html            First-run admin account creation
+  home.html             Workspace home page
+  assessment.html       Assessment accordion view
+  risk_register.html    Project risk register
+  compare.html          Cross-assessment comparison
+  members.html          Project member management
+  users.html            Instance user management
+  error.html            Generic error page
+docs/
+  docs.md               User guide
+  img/                  Screenshots
+data/                   Docker volume — librevig.db + uploads/
+DESIGN_SYSTEM.md        CSS token reference
+project.md              Architecture and full API reference
 ```
-
-## API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Main application page |
-| GET | `/api/assessments` | All assessments, notes, and attachments as JSON |
-| POST | `/api/assessments/<id>` | Update safeguard status |
-| POST | `/api/assessments/<id>/notes` | Add a note |
-| DELETE | `/api/notes/<id>` | Delete a note |
-| POST | `/api/assessments/<id>/attachments` | Upload a file |
-| GET | `/api/attachments/<id>` | Download/view an attachment |
-| DELETE | `/api/attachments/<id>` | Delete an attachment |
-| GET | `/api/export` | Export assessment as CSV |
 
 ## Technology
 
-- **Backend:** Flask (Python 3) + SQLite
-- **Frontend:** Vanilla JavaScript, Jinja2 server-side rendering
-- **Styling:** CSS custom properties (design tokens), no frameworks
-- **Charts:** Custom SVG radar chart, no chart libraries
-- **Fonts:** System font stack only
+- **Backend:** Python 3 + Flask ≥ 3.0, SQLite (WAL mode)
+- **Frontend:** Vanilla JavaScript, Jinja2 server-side rendering, inline CSS
+- **Styling:** CSS custom properties (design tokens) — no frameworks, no build step
+- **Charts:** Custom SVG radar chart — no charting libraries
+- **Auth:** Werkzeug password hashing, Flask signed-cookie sessions, per-request CSRF tokens
 
-No external JavaScript or CSS frameworks. No build step. No node_modules.
+No external JavaScript or CSS frameworks. No npm. No node_modules.
+
+Developed with [Claude Code](https://claude.ai/code) (Anthropic).
 
 ## License
 
 The **application code** is licensed under the [MIT License](LICENSE).
 
-The **CIS Controls data** (`cis_data.json`) is derived from CIS Controls v8.1.2, which is the intellectual property of the Center for Internet Security, Inc. (CIS®) and is licensed under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode).
+The **CIS Controls data** (`cis_data.json`) is derived from CIS Controls v8.1.2, the intellectual
+property of the Center for Internet Security, Inc. (CIS®), licensed under the
+[Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode).
 
-> CIS Controls® are developed by the Center for Internet Security. For the most current version, visit [https://www.cisecurity.org/controls/](https://www.cisecurity.org/controls/).
+> CIS Controls® are developed by the Center for Internet Security. For the most current version,
+> visit [https://www.cisecurity.org/controls/](https://www.cisecurity.org/controls/).
 
-**Important:** Because this repository includes CIS Controls content, **commercial use of this project is not permitted** without prior written approval from CIS. The MIT license applies only to the original application code; it does not supersede the CIS Controls license terms.
+**Important:** Because this repository includes CIS Controls content, **commercial use of this
+project is not permitted** without prior written approval from CIS. The MIT license applies only
+to the original application code and does not supersede the CIS Controls license terms.
