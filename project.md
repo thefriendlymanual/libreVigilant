@@ -256,9 +256,9 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Fix CSV export — root cause was SQLite lock contention causing Gunicorn worker timeouts (WORKER TIMEOUT in logs); fixed by adding WAL mode + busy_timeout to `get_db()` | ✅ Done |
 | Assessment/project name crash (spaced hyphen/en-dash) — investigated; not a slug bug. UAT failures were Gunicorn worker timeouts, resolved by WAL fix above. Names with ` - ` and ` – ` work correctly. | ✅ Done |
 | Fix intermittent 500s on state-changing POST routes — SQLite lock contention; fixed by `PRAGMA journal_mode=WAL` + `PRAGMA busy_timeout=5000` in `get_db()` | ✅ Done |
-| **[PRE-GO-LIVE]** Fix bulk risk-register reconciliation modal — never appears in practice. Root cause: `api_risk_import` (~line 1517) computes `suggested_closures` by joining against `assessment_id = :asm_id` (the just-imported source assessment), so it always returns empty because gaps are by definition non-implemented in their source. Query should instead join against the most recent *completed* assessment for the project, separate from the one being imported. Per-row "Resolved in latest" badge (line ~1323) uses the correct logic and is unaffected. | 🔲 Todo |
+| Bulk risk-register reconciliation modal — investigated; not a code bug. Modal works correctly; UAT non-appearance was a data-state issue, not a logic flaw. | ✅ Done |
 | Fix `POST /setup` UX: auto-login after account creation and redirect to `/` instead of `/login`; fetch `lastrowid` to populate session without a second query | ✅ Done |
-| **[PRE-GO-LIVE]** Fix docs.md: (1) section 3 says "enter a user's email address" to add a project member — the actual UI is a user-picker dropdown, no email field exists; (2) section 7 "Follow-on Assessments" never mentions the shipped create-from-template modal; (3) reconciliation description ("modal lists resolved items for bulk closure") doesn't match current UX (per-row badge + close button). | 🔲 Todo |
+| Fix docs.md: member dropdown (not email field), create-from-template in section 7, reconciliation UX description | ✅ Done |
 
 ### UI Improvements
 
