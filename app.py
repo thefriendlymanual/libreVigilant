@@ -552,14 +552,18 @@ def setup():
             password_hash = generate_password_hash(password)
 
             with get_db() as conn:
-                conn.execute(
+                cur = conn.execute(
                     "INSERT INTO users (email, display_name, password_hash, role, created_at) "
                     "VALUES (?, ?, ?, 'admin', ?)",
                     (email, display_name, password_hash, now),
                 )
                 conn.commit()
 
-            return redirect(url_for("login"))
+            session.clear()
+            session["user_id"] = cur.lastrowid
+            session["role"] = "admin"
+            session["display_name"] = display_name
+            return redirect(url_for("index"))
 
     return render_template("setup.html", errors=errors, form=form)
 
