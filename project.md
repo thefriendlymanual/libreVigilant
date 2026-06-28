@@ -253,6 +253,12 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | GitHub icon + link to project repo in UI | 🔲 Todo |
 | Self-service password reset (user resets own password from within the app) | ✅ Done |
 | Create assessment from template (modal: blank vs. copy from a previous assessment in the same project, prepopulating safeguard statuses/notes; skips modal straight to blank if project has no prior assessments) | ✅ Done |
+| Fix CSV export — root cause was SQLite lock contention causing Gunicorn worker timeouts (WORKER TIMEOUT in logs); fixed by adding WAL mode + busy_timeout to `get_db()` | ✅ Done |
+| **[PRE-GO-LIVE]** Fix assessment/project name crash when name contains a spaced hyphen/en-dash (e.g. `"Initial Assessment – FY26 Q1"`). `POST /projects/<id>/assessments` returns 500 for names matching ` - ` or ` – ` pattern. Likely a slug-generation or regex issue in `app.py`. Also affects `POST /setup` (separate 500 on valid first submit, no auto-login) — both likely share a slug/sanitisation root cause. | 🔲 Todo |
+| Fix intermittent 500s on state-changing POST routes — SQLite lock contention; fixed by `PRAGMA journal_mode=WAL` + `PRAGMA busy_timeout=5000` in `get_db()` | ✅ Done |
+| **[PRE-GO-LIVE]** Fix bulk risk-register reconciliation modal — never appears in practice. Root cause: `api_risk_import` (~line 1517) computes `suggested_closures` by joining against `assessment_id = :asm_id` (the just-imported source assessment), so it always returns empty because gaps are by definition non-implemented in their source. Query should instead join against the most recent *completed* assessment for the project, separate from the one being imported. Per-row "Resolved in latest" badge (line ~1323) uses the correct logic and is unaffected. | 🔲 Todo |
+| **[PRE-GO-LIVE]** Fix `POST /setup` UX: redirect to home page (with the new session) on success instead of returning a 500 error page. Account is created correctly server-side but the response is an error page with no auto-login, leaving the user stranded. | 🔲 Todo |
+| **[PRE-GO-LIVE]** Fix docs.md: (1) section 3 says "enter a user's email address" to add a project member — the actual UI is a user-picker dropdown, no email field exists; (2) section 7 "Follow-on Assessments" never mentions the shipped create-from-template modal; (3) reconciliation description ("modal lists resolved items for bulk closure") doesn't match current UX (per-row badge + close button). | 🔲 Todo |
 
 ### UI Improvements
 

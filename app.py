@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import mimetypes
 import os
@@ -65,6 +67,8 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -1266,7 +1270,6 @@ def api_export_csv(asm_id):
         ).fetchall()
     status_by_sg = {r["safeguard_id"]: dict(r) for r in rows}
 
-    import csv, io
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Control", "Safeguard", "Title", "Function", "Asset Class",
@@ -2054,7 +2057,6 @@ def api_risk_export(project_id):
 
     items = _build_risk_rows(project_id)
 
-    import csv, io
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
