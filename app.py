@@ -493,9 +493,27 @@ def require_role(*roles):
 # Error handlers
 # ---------------------------------------------------------------------------
 
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+def _csv_safe(value):
+    """Prefix formula-trigger characters to prevent CSV injection in spreadsheet apps."""
+    s = str(value) if value is not None else ""
+    return "'" + s if s.startswith(_FORMULA_TRIGGERS) else s
+
 @app.after_request
 def set_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "script-src 'self' 'unsafe-inline'; "
+        "object-src 'none'; "
+        "base-uri 'self';"
+    )
     return response
 
 
@@ -2080,9 +2098,9 @@ def api_risk_export(project_id):
             "Y" if item["ig3"] else "",
             item["current_status"],
             item["treatment"] or "",
-            item["owner"],
+            _csv_safe(item["owner"]),
             item["target_date"],
-            item["notes"],
+            _csv_safe(item["notes"]),
             item["status"],
             item["weight"],
         ])
