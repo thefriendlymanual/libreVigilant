@@ -249,8 +249,8 @@ No self-registration — an admin creates user accounts directly (no SMTP requir
 | Dockerfile + Docker Compose for Docker deployment | ✅ Done — `Dockerfile`, `docker-compose.yml`, `docs/docs.md` Option B |
 | Reverse proxy example (Traefik + Let's Encrypt DNS-01 via Cloudflare) | ✅ Done — `docs/docs.md` Option C, `traefik/` directory |
 | User documentation | ✅ Done — `docs/docs.md` scaffolded, all sections written including Docker/production deployment |
-| In-app help (docs served inline, linked from UI) | 🔲 Todo — defer until docs.md is finalised; route + template pattern is designed |
-| GitHub icon + link to project repo in UI | 🔲 Todo |
+| In-app help — links to docs on GitHub from navbar help icon | ✅ Done |
+| GitHub icon + link to project repo in UI | ✅ Done |
 | Self-service password reset (user resets own password from within the app) | ✅ Done |
 | Create assessment from template (modal: blank vs. copy from a previous assessment in the same project, prepopulating safeguard statuses/notes; skips modal straight to blank if project has no prior assessments) | ✅ Done |
 | Fix CSV export — root cause was SQLite lock contention causing Gunicorn worker timeouts (WORKER TIMEOUT in logs); fixed by adding WAL mode + busy_timeout to `get_db()` | ✅ Done |
